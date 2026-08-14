@@ -315,7 +315,14 @@ pytest
 ruff check .
 ```
 
-The tests run without a token. The client is a stub.
+The tests run without a token. The client is a stub. CI runs those two commands
+on every push and needs no credentials.
+
+A second workflow, `live`, calls the real API. It runs on manual dispatch only,
+because on every push it would spend money per commit and turn an API outage
+into a red build. Set a `BRIGHTDATA_API_TOKEN` repository secret, then start it
+from the Actions tab. It writes a summary table and uploads the JSON as an
+artifact.
 
 ## License
 
