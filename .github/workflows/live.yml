@@ -40,17 +40,23 @@ jobs:
       - name: Summarise
         if: always()
         run: |
+          set -o pipefail
           test -f instagram.json || exit 0
-          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          # tee, not >>, so the result is readable in this step's log as well as
+          # on the run summary page. A step that prints nothing looks broken.
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json
           doc = json.load(open("instagram.json"))
           print(f"Run at {doc['generated_at']}\n")
-          print("| handle | posts | fields in first record |")
-          print("| --- | --- | --- |")
+          print("| handle | posts | fields | newest post |")
+          print("| --- | --- | --- | --- |")
           for entry in doc["handles"]:
               posts = entry["posts"]
-              fields = len(posts[0]) if posts else 0
-              print(f"| {entry['handle']} | {len(posts)} | {fields} |")
+              newest = max(posts, key=lambda p: p.get("date_posted") or "", default=None)
+              print(
+                  f"| {entry['handle']} | {len(posts)} | {len(posts[0]) if posts else 0} "
+                  f"| {newest.get('url') if newest else '-'} |"
+              )
           PY
       - uses: actions/upload-artifact@v7
         if: always()

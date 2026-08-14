@@ -321,8 +321,12 @@ on every push and needs no credentials.
 A second workflow, `live`, calls the real API. It runs on manual dispatch only,
 because on every push it would spend money per commit and turn an API outage
 into a red build. Set a `BRIGHTDATA_API_TOKEN` repository secret, then start it
-from the Actions tab. It writes a summary table and uploads the JSON as an
-artifact.
+from the Actions tab.
+
+Its output lands in three places. The per-handle lines are in the Scrape step's
+log. A table of what was found is in the Summarise step's log and again on the
+run's summary page. The data itself is the `instagram-json` artifact, linked
+from that summary page.
 
 ## License
 
