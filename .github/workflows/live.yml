@@ -46,8 +46,10 @@ jobs:
           # on the run summary page. A step that prints nothing looks broken.
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json
+
           doc = json.load(open("instagram.json"))
           print(f"Run at {doc['generated_at']}\n")
+
           print("| handle | posts | fields | newest post |")
           print("| --- | --- | --- | --- |")
           for entry in doc["handles"]:
@@ -57,6 +59,29 @@ jobs:
                   f"| {entry['handle']} | {len(posts)} | {len(posts[0]) if posts else 0} "
                   f"| {newest.get('url') if newest else '-'} |"
               )
+
+          # Every post, one line each, so the log is enough to check a run.
+          for entry in doc["handles"]:
+              if not entry["posts"]:
+                  continue
+              print(f"\n### {entry['handle']}\n")
+              print("| date_posted | url | likes | comments |")
+              print("| --- | --- | --- | --- |")
+              for post in entry["posts"]:
+                  print(
+                      f"| {post.get('date_posted')} | {post.get('url')} "
+                      f"| {post.get('likes')} | {post.get('num_comments')} |"
+                  )
+
+          # One record in full, whatever the limit, so field values are checkable
+          # without downloading the artifact.
+          first = next((p for e in doc["handles"] for p in e["posts"]), None)
+          if first:
+              print("\n<details><summary>First record in full</summary>\n")
+              print("```json")
+              print(json.dumps(first, indent=2, ensure_ascii=False))
+              print("```\n")
+              print("</details>")
           PY
       - uses: actions/upload-artifact@v7
         if: always()
