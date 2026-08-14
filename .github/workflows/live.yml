@@ -1,0 +1,60 @@
+name: live
+
+# Calls the real API and spends money, so it only runs when someone asks.
+# Needs the BRIGHTDATA_API_TOKEN repository secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      handles:
+        description: Handles, separated by spaces
+        default: nasa natgeo
+      limit:
+        description: Posts per handle
+        default: "2"
+
+permissions:
+  contents: read
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e .
+      - name: Scrape
+        env:
+          BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
+          HANDLES: ${{ inputs.handles }}
+          LIMIT: ${{ inputs.limit }}
+        run: |
+          test -n "$BRIGHTDATA_API_TOKEN" || {
+            echo "Set the BRIGHTDATA_API_TOKEN repository secret first." >&2
+            exit 1
+          }
+          python -m ig_scraper $HANDLES --limit "$LIMIT"
+      - name: Summarise
+        if: always()
+        run: |
+          test -f instagram.json || exit 0
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          doc = json.load(open("instagram.json"))
+          print(f"Run at {doc['generated_at']}\n")
+          print("| handle | posts | fields in first record |")
+          print("| --- | --- | --- |")
+          for entry in doc["handles"]:
+              posts = entry["posts"]
+              fields = len(posts[0]) if posts else 0
+              print(f"| {entry['handle']} | {len(posts)} | {fields} |")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: instagram-json
+          path: instagram.json
+          if-no-files-found: warn
