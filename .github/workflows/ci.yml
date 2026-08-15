@@ -60,7 +60,23 @@ jobs:
               if line.startswith("ig-scraper"):
                   continue  # run below, so the exit code can be checked
               if line.startswith("pip install"):
-                  line = 'pip install "$GITHUB_WORKSPACE"'  # this commit, not main
+                  # While the repository is private nobody, including this
+                  # runner, can fetch that URL, so fall back to the checkout.
+                  # When it goes public the check arms itself and tests the
+                  # exact line a reader pastes. Nothing to remember later.
+                  url = line.split("git+", 1)[1].strip() if "git+" in line else ""
+                  line = "\n".join([
+                      f'repo="{url}"',
+                      'code=$(curl -s -o /dev/null -w "%{http_code}" "$repo" || echo 000)',
+                      'if [ "$code" = "200" ]; then',
+                      f'  echo "$repo is public: installing the exact README line"',
+                      f'  {line}',
+                      "else",
+                      '  echo "NOTE: $repo returns HTTP $code, so it is not public yet."',
+                      '  echo "Installing from this checkout instead."',
+                      '  pip install "$GITHUB_WORKSPACE"',
+                      "fi",
+                  ])
               steps.append(line)
 
           steps += [
