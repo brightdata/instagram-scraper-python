@@ -45,7 +45,7 @@ def test_an_empty_window_is_zero_records_not_a_failure():
 
     assert outcome.ok
     assert outcome.posts == []
-    assert outcome.note == "no posts in the requested window"
+    assert outcome.note == "the account has no public posts in the period searched"
 
 
 def test_any_other_error_row_fails_the_handle():
@@ -53,7 +53,7 @@ def test_any_other_error_row_fails_the_handle():
     outcome = scrape(["nasa"], client=stub([row]))[0]
 
     assert not outcome.ok
-    assert outcome.line() == "FAIL  @nasa  Page not found"
+    assert outcome.line() == "failed  @nasa: Page not found"
 
 
 def test_a_timed_out_request_is_a_failure_not_an_empty_creator():
@@ -63,7 +63,7 @@ def test_a_timed_out_request_is_a_failure_not_an_empty_creator():
     )
     outcome = scrape(["nasa"], client=client)[0]
 
-    assert outcome.line() == "FAIL  @nasa  timeout"
+    assert outcome.line() == "failed  @nasa: timeout"
 
 
 def test_one_bad_handle_does_not_end_the_run():
@@ -78,7 +78,7 @@ def test_a_run_writes_what_it_found(tmp_path):
     posts = [{"url": "https://www.instagram.com/p/AAA/", "likes": 12, "user_posted": "nasa"}]
     outcomes = scrape(["@nasa"], limit=1, client=stub(posts))
 
-    assert outcomes[0].line() == "OK    @nasa  1 posts"
+    assert outcomes[0].line() == "got     @nasa: 1 posts"
 
     path = write(outcomes, tmp_path / "out.json")
     document = json.loads(path.read_text(encoding="utf-8"))
@@ -143,12 +143,12 @@ def test_each_result_prints_before_the_next_handle_starts(monkeypatch, tmp_path,
     cli = fake_cli(monkeypatch, lambda h: Outcome(h, posts=[{"url": "x"}]))
     cli.main(["nasa", "natgeo", "--out", str(tmp_path / "o.json")])
 
-    printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith(("...", "OK"))]
-    assert printed == [
-        "...   @nasa",
-        "OK    @nasa  1 posts",
-        "...   @natgeo",
-        "OK    @natgeo  1 posts",
+    out = capsys.readouterr().out.splitlines()
+    assert [ln for ln in out if ln.startswith(("asking", "got"))] == [
+        "asking  @nasa...",
+        "got     @nasa: 1 posts",
+        "asking  @natgeo...",
+        "got     @natgeo: 1 posts",
     ]
 
 

@@ -19,38 +19,75 @@ ig-scraper nasa natgeo
 `python -m ig_scraper nasa natgeo` does the same thing. This is a reference
 repository, not a published package, so install it from the clone.
 
+**This costs nothing to try.** New Bright Data accounts get
+[5,000 free credits a month](https://docs.brightdata.com/general/account/billing-and-pricing/free-tier),
+usable across the Web Scraper API and the other APIs. The Web Scraper API spends
+one credit per record, so the command above uses 10 of your 5,000. No card is
+needed to start, and credits reset on the first of each month without rolling
+over.
+
 Get a token from the [Bright Data control panel](https://brightdata.com/cp/setting/users).
 The SDK reads `BRIGHTDATA_API_TOKEN` on its own, from the environment or from a
 `.env` file in the working directory. Copy `.env.example` to `.env` if you
 prefer a file. If you have run `brightdata login`, it uses those credentials and
 you can skip the export.
 
-Budget about 80 seconds per handle. Each one is announced before its request and
-reported the moment it lands, so a run in progress never looks stuck:
+Each result is printed the moment it lands, so nothing is held back for a slower
+account later in the list:
 
 ```
-...   @nasa
-OK    @nasa  5 posts
-...   @natgeo
-OK    @natgeo  5 posts
-wrote 10 posts to instagram.json
+Fetching up to 5 recent posts per account, for: nasa, natgeo
+Usually one to three minutes each. One credit per post, 5,000 free per month.
+asking  @nasa...
+got     @nasa: 5 posts
+asking  @natgeo...
+got     @natgeo: 5 posts
+
+Saved 10 posts as JSON to instagram.json (34 fields per post)
 ```
 
-A post record has 33 to 36 fields, depending on the post. The ones you are
-probably here for:
+That is a real run, copied from a terminal that was piped to a file. In an
+interactive terminal each `asking` line is a spinner with a running clock
+instead, so you can see it is working rather than hung:
 
 ```
-url  shortcode  post_id  date_posted  description  hashtags  content_type
-likes  num_comments  latest_comments  photos  images  thumbnail  alt_text
-user_posted  user_posted_id  profile_url  followers  is_verified
-is_paid_partnership  audio  videos_duration  product_type
+⠹ @nasa 0:01:47
+```
+
+A post record has 33 to 36 fields, depending on the post. The ones most people
+want:
+
+```
+url  date_posted  description  hashtags  likes  num_comments  user_posted
 ```
 
 Nothing is hardcoded. Whatever the API returns for a post is what lands in the
 file.
 
 <details>
-<summary>The whole file from <code>python -m ig_scraper nasa --limit 1</code>, one real post</summary>
+<summary>Every field in a real record, and where to look up what each one means</summary>
+
+From one live `nasa` post, 34 fields:
+
+```
+alt_text  audio  audio_url  content_id  content_type  date_posted  description
+discovery_input  followers  hashtags  images  input  is_paid_partnership
+is_verified  latest_comments  likes  num_comments  partnership_details  photos
+photos_number  pk  post_content  post_id  posts_count  product_type
+profile_image_link  profile_url  shortcode  thumbnail  timestamp  url
+user_posted  user_posted_id  videos_duration
+```
+
+A description and a data type for every field, plus Bright Data's own sample
+response, are on the dataset page in the control panel:
+[Instagram posts, collect by URL](https://brightdata.com/cp/scrapers/gd_lk5ns7kz21pck8jpis/pdp/overview).
+Open the Dictionary section there. That page also states the expected speed,
+an average of 55 seconds per input.
+
+</details>
+
+<details>
+<summary>The whole output file from <code>ig-scraper nasa --limit 1</code>, one real post</summary>
 
 ```json
 {
@@ -257,6 +294,32 @@ byte for byte, from a live run on 14 August 2026. A test keeps the two
 identical, so regenerating the sample fails the build until you paste the new
 file in here. That is the point.
 
+## If you would rather your coding agent did this
+
+Claude Code, Codex and Cursor can fetch this data without you writing any Python.
+Install the Bright Data CLI and connect it to your agent:
+
+```bash
+npm install -g @brightdata/cli
+brightdata login
+brightdata add mcp --agent claude-code --global
+```
+
+Use `--agent codex` or `--agent cursor` instead for those. Then ask your agent
+for the data in plain words. Ready-made agent skills, including one that covers
+Instagram profiles, posts and reels, are at
+[github.com/brightdata/skills](https://github.com/brightdata/skills).
+
+The same CLI does this job in one line without an agent, and without this
+repository:
+
+```bash
+brightdata pipelines instagram_posts "https://instagram.com/nasa"
+```
+
+Use that if you want the data. Read this repository if you want to see how the
+API behaves and why the code handles it the way it does.
+
 ## Options
 
 ```
@@ -271,15 +334,15 @@ Every message below is one this repository has actually produced.
 **`API token required but not found.`** Exit 2, before any request. Set
 `BRIGHTDATA_API_TOKEN`, or write it to `.env`, or run `brightdata login`.
 
-**`FAIL  @name  Sorry, this page isn't available.`** Exit 1. The handle does not
+**`failed  @name: Sorry, this page isn't available.`** Exit 1. The handle does not
 exist, usually a typo. This comes back in about 15 seconds rather than waiting
 out the timeout.
 
-**`OK  @name  0 posts  (no posts in the requested window)`** Exit 0, and correct.
+**`got     @name: 0 posts, the account has no public posts in the period searched`** Exit 0, and correct.
 The API reports an empty window as an error row on the input. It is a success
 with no records, not a failure.
 
-**`FAIL  @name  timeout`** Exit 1. A single request gives up after 180 seconds.
+**`failed  @name: timeout`** Exit 1. A single request gives up after 180 seconds.
 Run it again. Runs of the same command here have taken between 2 and 6 minutes
 for two handles, so the API's speed varies by the day.
 
@@ -307,7 +370,7 @@ Three more things that cost time to find:
 - When a date window matches nothing, the API does not return an empty list. It
   returns an error row on the input, with the message "There are no public posts
   in the profile for the specified period". That is a success with zero records,
-  and this prints as `0 posts (no posts in the requested window)`. The code
+  and it prints as `0 posts` with that explanation attached. The code
   matches on that message, not on `error_code`, because a genuinely dead page
   uses the same code.
 - `SyncBrightDataClient` builds its event loop in `__enter__`. Call a method on
@@ -319,14 +382,16 @@ The whole thing is [`src/ig_scraper/scrape.py`](src/ig_scraper/scrape.py), under
 
 ## Cost and time
 
-Instagram records cost $0.002 each. Five posts for one handle is five records,
-one cent.
+One record costs one credit. New accounts get 5,000 free credits a month, so the
+first 5,000 posts each month cost nothing. After that, Instagram records are
+$0.002 each, meaning five posts for one handle is one cent.
 
-Handles run one after another. The run above took 3 minutes 21 seconds for two
-handles. Other runs of the same command took 2 minutes 46 seconds and 5 minutes
-50 seconds, so budget for the API being slower on some days. A single request
-gives up after 180 seconds, and that shows as `FAIL`, not as a creator with
-nothing to show.
+Accounts are fetched one after another. Bright Data's dataset page states an
+average of 55 seconds per input. Five runs of the two-account command here took
+2:46, 3:20, 4:02, 5:15 and 5:50, so between 1 and 3 minutes per account is a
+safer expectation, and the API is slower on some days than others. A single
+request gives up after 180 seconds, and that shows as `failed`, not as an
+account with nothing to show.
 
 ## What this is not
 

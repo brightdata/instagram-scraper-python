@@ -79,7 +79,7 @@ def split(result: Any) -> tuple[list[dict[str, Any]], list[str], list[str]]:
         if not error:
             records.append(row)
         elif EMPTY_WINDOW in str(error):
-            notes.append("no posts in the requested window")
+            notes.append("the account has no public posts in the period searched")
         else:
             errors.append(str(error))
     return records, notes, errors
@@ -99,10 +99,11 @@ class Outcome:
         return self.error is None
 
     def line(self) -> str:
+        """One line a reader can understand without having read the source."""
         if not self.ok:
-            return f"FAIL  @{self.handle}  {self.error}"
-        tail = f"  ({self.note})" if self.note else ""
-        return f"OK    @{self.handle}  {len(self.posts)} posts{tail}"
+            return f"failed  @{self.handle}: {self.error}"
+        tail = f", {self.note}" if self.note else ""
+        return f"got     @{self.handle}: {len(self.posts)} posts{tail}"
 
 
 def scrape_handle(client: Any, handle: str, limit: int = 5) -> Outcome:
