@@ -130,15 +130,22 @@ def scrape_handle(client: Any, handle: str, limit: int = 5) -> Outcome:
     return outcome
 
 
-def scrape(handles: Iterable[str], limit: int = 5, client: Any = None) -> list[Outcome]:
-    """Run every handle. The SDK finds the token by itself.
+def client_context(client: Any = None) -> Any:
+    """The client to work with: the one passed in, or one we open and own.
 
     SyncBrightDataClient builds its event loop in __enter__, so it has to be
     entered. Calling a method on an unentered client fails with an AttributeError
-    about run_until_complete.
+    about run_until_complete. The SDK finds the token by itself.
+
+    Callers that want to report progress hold this open and drive scrape_handle
+    themselves, which is what the CLI does.
     """
-    owned = nullcontext(client) if client is not None else SyncBrightDataClient()
-    with owned as opened:
+    return nullcontext(client) if client is not None else SyncBrightDataClient()
+
+
+def scrape(handles: Iterable[str], limit: int = 5, client: Any = None) -> list[Outcome]:
+    """Run every handle and return one Outcome each, in order."""
+    with client_context(client) as opened:
         return [scrape_handle(opened, handle, limit) for handle in handles]
 
 

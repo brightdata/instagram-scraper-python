@@ -14,6 +14,9 @@ dependencies = ["brightdata-sdk>=2.5.2"]
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6"]
 
+[project.scripts]
+ig-scraper = "ig_scraper.__main__:main"
+
 [project.urls]
 Homepage = "https://github.com/brightdata/instagram-scraper-python"
 

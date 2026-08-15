@@ -2,14 +2,18 @@
 
 from __future__ import annotations
 
+import inspect
 import json
 import sys
+from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from brightdata import BrightDataError
 
-from ig_scraper.scrape import EMPTY_WINDOW, clean_handle, scrape, write
+import ig_scraper.__main__  # noqa: F401  (registers the module for monkeypatching)
+from ig_scraper.scrape import EMPTY_WINDOW, Outcome, clean_handle, scrape, write
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -98,6 +102,65 @@ def test_a_client_we_own_gets_entered(monkeypatch):
     monkeypatch.setattr(sys.modules["ig_scraper.scrape"], "SyncBrightDataClient", Fake)
     assert scrape(["nasa"])[0].ok
     assert entered == [True, False]
+
+
+def test_the_sdk_still_offers_the_call_this_repo_makes():
+    """A stub client cannot notice an SDK rename. This can, offline and unauthenticated.
+
+    Without it, dropping num_of_posts upstream leaves every test green and every
+    user broken.
+    """
+    from brightdata import SyncBrightDataClient
+    from brightdata.scrapers.instagram.search import InstagramSearchScraper
+    from brightdata.sync_client import SyncInstagramSearchScraper
+
+    assert isinstance(SyncBrightDataClient.search, property)
+    assert callable(SyncInstagramSearchScraper.posts)
+
+    params = inspect.signature(InstagramSearchScraper.posts).parameters
+    assert "url" in params, params
+    assert "num_of_posts" in params, params
+
+
+def fake_cli(monkeypatch, outcome_for):
+    """Point the CLI at a client that never exists and a handler we control."""
+    cli = sys.modules["ig_scraper.__main__"]
+    monkeypatch.setattr(cli, "client_context", lambda: nullcontext(object()))
+    monkeypatch.setattr(cli, "scrape_handle", lambda client, handle, limit: outcome_for(handle))
+    return cli
+
+
+def test_the_cli_exit_code_says_whether_every_handle_worked(monkeypatch, tmp_path):
+    cli = fake_cli(monkeypatch, lambda h: Outcome(h, posts=[{"url": "x"}]))
+    assert cli.main(["nasa", "--out", str(tmp_path / "ok.json")]) == 0
+
+    cli = fake_cli(monkeypatch, lambda h: Outcome(h, error="boom"))
+    assert cli.main(["nasa", "--out", str(tmp_path / "bad.json")]) == 1
+
+
+def test_each_result_prints_before_the_next_handle_starts(monkeypatch, tmp_path, capsys):
+    """Holding every result to the end is a worse wait than printing nothing."""
+    cli = fake_cli(monkeypatch, lambda h: Outcome(h, posts=[{"url": "x"}]))
+    cli.main(["nasa", "natgeo", "--out", str(tmp_path / "o.json")])
+
+    printed = [ln for ln in capsys.readouterr().out.splitlines() if ln.startswith(("...", "OK"))]
+    assert printed == [
+        "...   @nasa",
+        "OK    @nasa  1 posts",
+        "...   @natgeo",
+        "OK    @natgeo  1 posts",
+    ]
+
+
+def test_a_missing_token_is_a_message_not_a_traceback(monkeypatch, capsys):
+    cli = sys.modules["ig_scraper.__main__"]
+
+    def no_token():
+        raise BrightDataError("API token required but not found.")
+
+    monkeypatch.setattr(cli, "client_context", no_token)
+    assert cli.main(["nasa"]) == 2
+    assert "token" in capsys.readouterr().err
 
 
 def test_the_readme_shows_the_example_file_verbatim():

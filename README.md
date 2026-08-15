@@ -6,11 +6,18 @@ command in, one file out.
 
 ## Quickstart
 
+Python 3.10 or newer.
+
 ```bash
-pip install brightdata-sdk
+git clone https://github.com/brightdata/instagram-scraper-python
+cd instagram-scraper-python
+pip install -e .
 export BRIGHTDATA_API_TOKEN=your_token
-python -m ig_scraper nasa natgeo
+ig-scraper nasa natgeo
 ```
+
+`python -m ig_scraper nasa natgeo` does the same thing. This is a reference
+repository, not a published package, so install it from the clone.
 
 Get a token from the [Bright Data control panel](https://brightdata.com/cp/setting/users).
 The SDK reads `BRIGHTDATA_API_TOKEN` on its own, from the environment or from a
@@ -18,10 +25,13 @@ The SDK reads `BRIGHTDATA_API_TOKEN` on its own, from the environment or from a
 prefer a file. If you have run `brightdata login`, it uses those credentials and
 you can skip the export.
 
-One line per handle, then the file:
+Each handle is announced before its request and reported the moment it lands, so
+a run in progress never looks stuck:
 
 ```
+...   @nasa
 OK    @nasa  5 posts
+...   @natgeo
 OK    @natgeo  5 posts
 wrote 10 posts to instagram.json
 ```
@@ -283,19 +293,19 @@ Three more things that cost time to find:
   one you never entered and you get `AttributeError: 'NoneType' object has no
   attribute 'run_until_complete'`, which does not sound like the actual problem.
 
-The whole thing is [`src/ig_scraper/scrape.py`](src/ig_scraper/scrape.py), about
-130 lines.
+The whole thing is [`src/ig_scraper/scrape.py`](src/ig_scraper/scrape.py), under
+170 lines.
 
 ## Cost and time
 
 Instagram records cost $0.002 each. Five posts for one handle is five records,
 one cent.
 
-Handles run one after another. The two above took 2 minutes 46 seconds
-together, about 83 seconds each. An earlier run of the same command took 5
-minutes 50 seconds, so budget for the API being slower on some days. A single
-request gives up after 180 seconds, and that shows as `FAIL`, not as a creator
-with nothing to show.
+Handles run one after another. The run above took 3 minutes 21 seconds for two
+handles. Other runs of the same command took 2 minutes 46 seconds and 5 minutes
+50 seconds, so budget for the API being slower on some days. A single request
+gives up after 180 seconds, and that shows as `FAIL`, not as a creator with
+nothing to show.
 
 ## What this is not
 
