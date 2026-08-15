@@ -44,6 +44,21 @@ In a terminal each `asking` line is a spinner with a running clock.
 
 `python -m ig_scraper` works too.
 
+## Use it from Python
+
+```python
+from ig_scraper import scrape
+
+for outcome in scrape(["nasa"], limit=2):
+    for post in outcome.posts:
+        print(post["likes"], post["num_comments"], post["url"])
+```
+
+```
+146397 499 https://www.instagram.com/p/DcCUKZoAS8h/
+63408 631 https://www.instagram.com/reel/DcCH2ZygIiP/
+```
+
 ## The data
 
 The fields most people want:
@@ -54,9 +69,60 @@ url  date_posted  description  hashtags  likes  num_comments  user_posted
 
 The code hardcodes no field list. Whatever the API returns lands in the file.
 
-Every field, with descriptions and types, is on the
-[dataset page](https://brightdata.com/cp/scrapers/gd_lk5ns7kz21pck8jpis/pdp/overview)
-under Dictionary.
+<details>
+<summary>All 43 fields, with type and description</summary>
+
+From the dataset schema itself, via
+`client.datasets.instagram_posts.get_metadata()`. A post carries the fields
+that apply to it, so the sample below has 34 of these 43.
+
+| field | type | description |
+| --- | --- | --- |
+| `url` | url | The direct URL of the Instagram post |
+| `user_posted` | text | Username of the post creator |
+| `description` | text | Post text description |
+| `hashtags` | array | Hashtags used in the post |
+| `num_comments` | number | Number of comments |
+| `date_posted` | date | Post publication date |
+| `likes` | number | Number of likes on the post |
+| `photos` | array | URLs of attached photos, URLs can be expired due to Instagram policy |
+| `videos` | array | URLs of attached videos, URLs can be expired due to Instagram policy |
+| `location` | array | Geographical location associated with the post |
+| `location_details` | object | Detailed geographical location metadata as returned by Instagram |
+| `latest_comments` | array | Recent comments on the post |
+| `post_id` | text | Unique post identifier |
+| `discovery_input` | object | Discovery input values used to trigger the collection |
+| `has_handshake` | boolean | Indicates if the post has a handshake (collaborative agreement between accounts) |
+| `display_url` | text | Deprecated: previously used as the display URL of the post media |
+| `shortcode` | text | The shortcode of the Instagram post, used in the post URL path |
+| `content_type` | text | The type of content: Posts or Reels |
+| `pk` | text | The primary key of the media content as assigned by Instagram |
+| `content_id` | text | The content ID of the media item |
+| `engagement_score_view` | number | Video view count used as an engagement score metric |
+| `thumbnail` | text | The URL of the post's display image or video thumbnail |
+| `video_view_count` | text | The number of views on the video post |
+| `product_type` | text | The type of product associated with the post, such as 'clips' for Reels |
+| `coauthor_producers` | array | List of co-authors or producers who collaborated on the post |
+| `tagged_users` | array | List of users tagged in the post |
+| `video_play_count` | number | The number of times the video has been played |
+| `followers` | number | Number of followers the post owner has at the time of collection |
+| `posts_count` | number | The total count of posts made by the account at the time of collection |
+| `profile_image_link` | text | URL linking directly to the Instagram profile image of the post owner |
+| `is_verified` | boolean | Indicates whether the post owner's account is verified |
+| `is_paid_partnership` | boolean | Indicates whether the post is a sponsored or paid partnership |
+| `partnership_details` | object | Details of the paid partnership brand associated with the post |
+| `user_posted_id` | text | The Instagram user ID of the account that posted the post |
+| `post_content` | array | List of media items (photos or videos) attached to the post, including carousel items |
+| `audio` | object | Audio track metadata associated with the post or Reel |
+| `profile_url` | url | URL of the Instagram profile that posted the post |
+| `videos_duration` | array | List of video durations for each video attached to the post |
+| `images` | array | List of image objects attached to the post |
+| `alt_text` | text | Accessibility alt text for the post's main image: descriptive text that conveys the meaning of the image for blind or visually impaired users |
+| `photos_number` | number | Total number of photos attached to the post |
+| `audio_url` | url | Direct URL of the audio track used in the post |
+| `thumbnail_array` | array | Deprecated: array of thumbnail URLs for the post media |
+
+</details>
 
 <details>
 <summary>A whole output file, from <code>ig-scraper nasa --limit 1</code></summary>
@@ -272,32 +338,6 @@ under Dictionary.
 
 Any failure exits 1, so a run is safe to gate a script on.
 
-## How it works
-
-One call per account:
-
-```python
-client.search.instagram.posts("https://www.instagram.com/nasa/", num_of_posts=5)
-```
-
-No second collection step. Discovery returns the complete record, 34 fields
-against 33 from collecting the same post afterwards. The extra call cost a
-credit per post, added 75 seconds, and returned nothing for reels.
-
-Three things that cost time to find:
-
-- A record carries both `shortcode` and `url`. The SDK docstrings list only
-  `shortcode`.
-- An empty date window arrives as an error row, not an empty list: "There are
-  no public posts in the profile for the specified period". That is a success
-  with no records. Match on the message, not `error_code`, which a dead account
-  shares.
-- `SyncBrightDataClient` builds its event loop in `__enter__`. Unentered, it
-  fails with `AttributeError: 'NoneType' object has no attribute
-  'run_until_complete'`.
-
-All of it is [scrape.py](src/ig_scraper/scrape.py), under 170 lines.
-
 ## Coding agents
 
 Claude Code, Codex and Cursor can fetch this without the Python:
@@ -316,18 +356,6 @@ One line, no agent, no clone:
 ```bash
 brightdata pipelines instagram_posts "https://instagram.com/nasa"
 ```
-
-## Development
-
-```bash
-pip install -e ".[dev]"
-pytest
-ruff check .
-```
-
-Tests need no token. CI runs them on every push, and separately follows the
-quickstart above on an empty machine, so it cannot rot. A second workflow, run
-by hand from the Actions tab, does a real scrape.
 
 ## License
 
