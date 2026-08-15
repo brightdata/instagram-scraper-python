@@ -1,4 +1,6 @@
-name: ci
+# Runs by itself on every push and pull request.
+# Never calls the Instagram API, so it needs no token and costs nothing.
+name: Tests (automatic, no API calls, free)
 
 on:
   push:
@@ -8,32 +10,35 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  tests:
+    name: Run the tests and the code style check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]"
-      - run: ruff check .
-      - run: pytest
+      - name: Install the package and its test tools
+        run: pip install -e ".[dev]"
+      - name: Check code style with ruff
+        run: ruff check .
+      - name: Run the tests
+        run: pytest
 
-  # Runs the README's own quickstart on a machine with nothing installed.
-  # The quickstart shipped broken once because it was only ever run from a
-  # working copy that already had the package. A promise in prose rots while
-  # the tests stay green, so the prose is executed here instead.
-  # No token, so the API is never called and this job is free and never flaky.
-  # It ends one step short of the data, at the point where the SDK asks for
-  # credentials, which proves the install, the entry point and the imports.
+  # The README's install instructions shipped broken once, because they were
+  # only ever run from a working copy that already had the package installed.
+  # This job starts from an empty machine and follows the README literally.
+  # It stops at the point where the tool asks for an API token, which proves
+  # the download, the install and the command all work, without spending money.
   coldstart:
+    name: Follow the README from scratch on an empty machine
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Run the README quickstart from scratch
+      - name: Copy the install steps out of the README and run them
         run: |
           set -o pipefail
           python - <<'PY' > "$RUNNER_TEMP/quickstart.sh"
@@ -52,7 +57,7 @@ jobs:
           steps = []
           for line in block.splitlines():
               if line.startswith("export BRIGHTDATA_API_TOKEN"):
-                  continue  # no secret in the free job
+                  continue  # this job has no token on purpose
               if line.startswith("ig-scraper"):
                   continue  # run below, so the exit code can be checked
               if line.startswith("git clone"):
@@ -68,11 +73,11 @@ jobs:
               "set -e",
               'test "$code" = "2" || { echo "expected exit 2, got $code"; cat err.txt; exit 1; }',
               'grep -qi token err.txt || { echo "no token message"; cat err.txt; exit 1; }',
-              'echo "cold start ok: clone, install, entry point and imports all work"',
+              'echo "Success: a new user can download, install and run this."',
           ]
           print("\n".join(steps))
           PY
-          echo "--- generated from README.md ---"
+          echo "--- these commands came out of README.md ---"
           cat "$RUNNER_TEMP/quickstart.sh"
-          echo "--- running ---"
+          echo "--- running them on this empty machine ---"
           cd "$RUNNER_TEMP" && bash -e "$RUNNER_TEMP/quickstart.sh"
