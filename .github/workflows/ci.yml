@@ -49,7 +49,7 @@ jobs:
           section = readme.split("## Quickstart", 1)[1]
           block = re.search(r"```bash\n(.*?)```", section, re.S).group(1)
 
-          for required in ("git clone", "pip install", "ig-scraper"):
+          for required in ("pip install", "ig-scraper"):
               if required not in block:
                   sys.exit(f"the quickstart no longer contains {required!r}")
 
@@ -59,10 +59,8 @@ jobs:
                   continue  # this job has no token on purpose
               if line.startswith("ig-scraper"):
                   continue  # run below, so the exit code can be checked
-              if line.startswith("git clone"):
-                  line = 'git clone -q "$GITHUB_WORKSPACE" repo'  # this commit, not main
-              elif line.startswith("cd "):
-                  line = "cd repo"
+              if line.startswith("pip install"):
+                  line = 'pip install "$GITHUB_WORKSPACE"'  # this commit, not main
               steps.append(line)
 
           steps += [

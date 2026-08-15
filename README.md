@@ -9,17 +9,14 @@ Posts only, one command.
 Python 3.10 or newer.
 
 ```bash
-git clone https://github.com/brightdata/instagram-scraper-python
-cd instagram-scraper-python
-pip install -e .
-export BRIGHTDATA_API_TOKEN=your_token
+pip install git+https://github.com/brightdata/instagram-scraper-python
+export BRIGHTDATA_API_TOKEN=YOUR_API_KEY
 ig-scraper nasa natgeo
 ```
 
 Get a token from the
-[Bright Data control panel](https://brightdata.com/cp/setting/users). The SDK
-reads `BRIGHTDATA_API_TOKEN` from the environment or from a `.env` file. Copy
-`.env.example` to start one.
+[Bright Data control panel](https://brightdata.com/cp/setting/users). A `.env`
+file in the working directory works instead of the export.
 
 New accounts get
 [5,000 free credits a month](https://docs.brightdata.com/general/account/billing-and-pricing/free-tier).
@@ -340,22 +337,15 @@ Any failure exits 1, so a run is safe to gate a script on.
 
 ## Coding agents
 
-Claude Code, Codex and Cursor can fetch this without the Python:
+No Python, nothing installed. Paste both lines; the first opens a browser once:
 
 ```bash
-npm install -g @brightdata/cli
-brightdata login
-brightdata add mcp --agent claude-code --global
+npx -p @brightdata/cli bdata login
+npx -p @brightdata/cli bdata pipelines instagram_posts "https://www.instagram.com/p/Db_SePSltfz/"
 ```
 
-Or `--agent codex`, `--agent cursor`. Skills:
+Agent skills for Claude Code, Codex and Cursor:
 [brightdata/skills](https://github.com/brightdata/skills).
-
-One line, no agent, no clone:
-
-```bash
-brightdata pipelines instagram_posts "https://instagram.com/nasa"
-```
 
 ## License
 
