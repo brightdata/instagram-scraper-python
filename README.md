@@ -32,7 +32,12 @@ got     @natgeo: 5 posts
 Saved 10 posts as JSON to instagram.json (34 fields per post)
 ```
 
-In a terminal each `asking` line is a spinner with a running clock.
+In a terminal the `asking` lines are replaced by this, updating in place, so
+you can see it is working and how long it has been going:
+
+```
+⠹ @nasa 0:01:47
+```
 
 ```
 --limit N    posts per account, default 5, minimum 1
