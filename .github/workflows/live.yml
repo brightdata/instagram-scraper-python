@@ -1,9 +1,8 @@
-# You start this one by hand, from the Actions tab.
-# It calls the real Instagram API, so it needs the BRIGHTDATA_API_TOKEN secret
-# and it spends Bright Data credits. Roughly $0.002 per post.
+# Started by hand from the Actions tab. Calls the real API, so it needs the
+# BRIGHTDATA_API_TOKEN secret and spends one credit per post.
 #
-# It does not run on push. On every commit it would spend money for no reason,
-# and a slow day at the API would show up as a failed build on your repository.
+# Not on push: that would spend money per commit, and a slow day at the API
+# would show up as a failed build on your repository.
 name: Scrape Instagram for real (start it yourself, uses your API token)
 
 run-name: Scrape ${{ inputs.handles }}, ${{ inputs.limit }} posts each

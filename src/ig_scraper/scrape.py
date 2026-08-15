@@ -1,14 +1,10 @@
 """Get a creator's recent Instagram posts by handle.
 
-One call per handle:
-
     handle -> search.instagram.posts -> full post records
 
-There is no second collection step. Discovery already returns the complete
-record. Checked on 2026-08-14: discovery returned 34 fields for a nasa post and
-collecting the same post afterwards returned 33. The second call cost another
-record per post, took another 75 seconds, and dropped every reel, because reel
-URLs are not in the posts dataset.
+No second collection step. Discovery returns the complete record: 34 fields on
+2026-08-14, against 33 from collecting the same post afterwards. The extra call
+cost a record per post, added 75 seconds, and dropped every reel.
 """
 
 from __future__ import annotations
@@ -24,9 +20,8 @@ from typing import Any
 
 from brightdata import SyncBrightDataClient
 
-#: The API reports an empty date window as an error row on the input, not as an
-#: empty list. The message is the only reliable signal: a genuinely dead page
-#: carries the same error_code.
+#: An empty date window comes back as an error row, not an empty list. Match on
+#: the message: a dead page carries the same error_code.
 EMPTY_WINDOW = "There are no public posts in the profile for the specified period"
 
 _HANDLE = re.compile(r"^[A-Za-z0-9._]{1,30}$")
@@ -132,14 +127,12 @@ def scrape_handle(client: Any, handle: str, limit: int = 5) -> Outcome:
 
 
 def client_context(client: Any = None) -> Any:
-    """The client to work with: the one passed in, or one we open and own.
+    """The client passed in, or one we open and own.
 
-    SyncBrightDataClient builds its event loop in __enter__, so it has to be
-    entered. Calling a method on an unentered client fails with an AttributeError
-    about run_until_complete. The SDK finds the token by itself.
-
-    Callers that want to report progress hold this open and drive scrape_handle
-    themselves, which is what the CLI does.
+    SyncBrightDataClient builds its event loop in __enter__, so it must be
+    entered. An unentered client fails with an AttributeError about
+    run_until_complete. Callers wanting progress hold this open and drive
+    scrape_handle themselves, as the CLI does.
     """
     return nullcontext(client) if client is not None else SyncBrightDataClient()
 

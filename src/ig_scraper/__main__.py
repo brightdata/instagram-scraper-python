@@ -50,8 +50,8 @@ def main(argv: list[str] | None = None) -> int:
                 bar.console.print(outcome.line(), markup=False, highlight=False)
                 outcomes.append(outcome)
     except BrightDataError as exc:
-        # Almost always a missing token. The SDK says what to do about it, and
-        # that advice reads as a crash if it arrives under a traceback.
+        # Almost always a missing token. The SDK's advice reads as a crash if it
+        # arrives under a traceback.
         print(exc, file=sys.stderr)
         return 2
 

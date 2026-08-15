@@ -25,11 +25,10 @@ jobs:
       - name: Run the tests
         run: pytest
 
-  # The README's install instructions shipped broken once, because they were
-  # only ever run from a working copy that already had the package installed.
-  # This job starts from an empty machine and follows the README literally.
-  # It stops at the point where the tool asks for an API token, which proves
-  # the download, the install and the command all work, without spending money.
+  # These install steps shipped broken once, because they were only ever run
+  # from a working copy that already had the package. This job follows the
+  # README on an empty machine and stops where the tool asks for a token, which
+  # proves the clone, the install and the command without spending money.
   coldstart:
     name: Follow the README from scratch on an empty machine
     runs-on: ubuntu-latest

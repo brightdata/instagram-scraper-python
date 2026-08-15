@@ -18,9 +18,8 @@ ig-scraper nasa natgeo
 
 Get a token from the
 [Bright Data control panel](https://brightdata.com/cp/setting/users). The SDK
-reads `BRIGHTDATA_API_TOKEN` on its own, from the environment or from a `.env`
-file in the working directory. Copy `.env.example` to `.env` if you prefer a
-file.
+reads `BRIGHTDATA_API_TOKEN` from the environment or from a `.env` file. Copy
+`.env.example` to start one.
 
 New accounts get
 [5,000 free credits a month](https://docs.brightdata.com/general/account/billing-and-pricing/free-tier).
@@ -36,8 +35,7 @@ got     @natgeo: 5 posts
 Saved 10 posts as JSON to instagram.json (34 fields per post)
 ```
 
-In a terminal each `asking` line is a spinner with a running clock. Results
-print as they land, so a slow account never holds up the ones already done.
+In a terminal each `asking` line is a spinner with a running clock.
 
 ```
 --limit N    posts per account, default 5, minimum 1
@@ -48,31 +46,17 @@ print as they land, so a slow account never holds up the ones already done.
 
 ## The data
 
-A post has 33 to 36 fields. The ones most people want:
+The fields most people want:
 
 ```
 url  date_posted  description  hashtags  likes  num_comments  user_posted
 ```
 
-Nothing is hardcoded, so whatever the API returns is what lands in the file.
+The code hardcodes no field list. Whatever the API returns lands in the file.
 
-<details>
-<summary>All 34 fields from a real post</summary>
-
-```
-alt_text  audio  audio_url  content_id  content_type  date_posted  description
-discovery_input  followers  hashtags  images  input  is_paid_partnership
-is_verified  latest_comments  likes  num_comments  partnership_details  photos
-photos_number  pk  post_content  post_id  posts_count  product_type
-profile_image_link  profile_url  shortcode  thumbnail  timestamp  url
-user_posted  user_posted_id  videos_duration
-```
-
-Descriptions and data types are on the
-[dataset page](https://brightdata.com/cp/scrapers/gd_lk5ns7kz21pck8jpis/pdp/overview),
+Every field, with descriptions and types, is on the
+[dataset page](https://brightdata.com/cp/scrapers/gd_lk5ns7kz21pck8jpis/pdp/overview)
 under Dictionary.
-
-</details>
 
 <details>
 <summary>A whole output file, from <code>ig-scraper nasa --limit 1</code></summary>
@@ -296,22 +280,21 @@ One call per account:
 client.search.instagram.posts("https://www.instagram.com/nasa/", num_of_posts=5)
 ```
 
-There is no second collection step. Discovery already returns the complete
-record, 34 fields against 33 from collecting the same post afterwards. The
-second call cost another credit per post, added 75 seconds, and returned nothing
-for accounts whose recent posts are reels.
+No second collection step. Discovery returns the complete record, 34 fields
+against 33 from collecting the same post afterwards. The extra call cost a
+credit per post, added 75 seconds, and returned nothing for reels.
 
 Three things that cost time to find:
 
 - A record carries both `shortcode` and `url`. The SDK docstrings list only
   `shortcode`.
-- An empty date window arrives as an error row on the input, not an empty list,
-  reading "There are no public posts in the profile for the specified period".
-  That is a success with no records. The code matches on that message, not on
-  `error_code`, because a dead account uses the same code.
+- An empty date window arrives as an error row, not an empty list: "There are
+  no public posts in the profile for the specified period". That is a success
+  with no records. Match on the message, not `error_code`, which a dead account
+  shares.
 - `SyncBrightDataClient` builds its event loop in `__enter__`. Unentered, it
   fails with `AttributeError: 'NoneType' object has no attribute
-  'run_until_complete'`, which points nowhere near the cause.
+  'run_until_complete'`.
 
 All of it is [scrape.py](src/ig_scraper/scrape.py), under 170 lines.
 
@@ -325,10 +308,10 @@ brightdata login
 brightdata add mcp --agent claude-code --global
 ```
 
-Use `--agent codex` or `--agent cursor` for those. Ready-made skills are at
+Or `--agent codex`, `--agent cursor`. Skills:
 [brightdata/skills](https://github.com/brightdata/skills).
 
-The same CLI does the job in one line, with no agent and no clone:
+One line, no agent, no clone:
 
 ```bash
 brightdata pipelines instagram_posts "https://instagram.com/nasa"
@@ -342,9 +325,9 @@ pytest
 ruff check .
 ```
 
-Tests need no token. CI runs them on every push, and separately follows this
-README's install steps on an empty machine, so the quickstart cannot rot. A
-second workflow, started by hand from the Actions tab, runs a real scrape.
+Tests need no token. CI runs them on every push, and separately follows the
+quickstart above on an empty machine, so it cannot rot. A second workflow, run
+by hand from the Actions tab, does a real scrape.
 
 ## License
 
