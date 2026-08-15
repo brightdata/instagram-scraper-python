@@ -156,7 +156,6 @@ def write(outcomes: list[Outcome], path: str | Path) -> Path:
         "handles": [{"handle": o.handle, "posts": o.posts} for o in outcomes],
     }
     target = Path(path)
-    if target.parent != Path(""):
-        target.parent.mkdir(parents=True, exist_ok=True)
+    target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(json.dumps(document, indent=2) + "\n", encoding="utf-8")
     return target

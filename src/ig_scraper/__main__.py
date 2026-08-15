@@ -10,13 +10,21 @@ from brightdata import BrightDataError
 from .scrape import client_context, scrape_handle, write
 
 
+def positive(value: str) -> int:
+    """Reject a limit the API would charge for and not honour."""
+    number = int(value)
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"{value} is not 1 or more")
+    return number
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ig-scraper",
         description="Scrape recent Instagram posts for one or more handles.",
     )
     parser.add_argument("handles", nargs="+", help="handles, with or without the @")
-    parser.add_argument("--limit", type=int, default=5, help="posts per handle (default 5)")
+    parser.add_argument("--limit", type=positive, default=5, help="posts per handle, default 5")
     parser.add_argument("--out", default="instagram.json", help="output file")
     args = parser.parse_args(argv)
 

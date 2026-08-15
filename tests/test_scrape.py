@@ -152,6 +152,15 @@ def test_each_result_prints_before_the_next_handle_starts(monkeypatch, tmp_path,
     ]
 
 
+def test_a_limit_below_one_is_refused_before_any_request(capsys):
+    """num_of_posts=0 is money spent on a request nobody meant to make."""
+    cli = sys.modules["ig_scraper.__main__"]
+    for bad in ("0", "-3"):
+        with pytest.raises(SystemExit):
+            cli.main(["nasa", "--limit", bad])
+    assert "1 or more" in capsys.readouterr().err
+
+
 def test_a_missing_token_is_a_message_not_a_traceback(monkeypatch, capsys):
     cli = sys.modules["ig_scraper.__main__"]
 

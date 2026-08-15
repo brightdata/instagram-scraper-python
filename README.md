@@ -25,8 +25,8 @@ The SDK reads `BRIGHTDATA_API_TOKEN` on its own, from the environment or from a
 prefer a file. If you have run `brightdata login`, it uses those credentials and
 you can skip the export.
 
-Each handle is announced before its request and reported the moment it lands, so
-a run in progress never looks stuck:
+Budget about 80 seconds per handle. Each one is announced before its request and
+reported the moment it lands, so a run in progress never looks stuck:
 
 ```
 ...   @nasa
@@ -260,9 +260,30 @@ file in here. That is the point.
 ## Options
 
 ```
---limit N    posts per handle, default 5
+--limit N    posts per handle, default 5, must be 1 or more
 --out PATH   output file, default instagram.json
 ```
+
+## When it does not work
+
+Every message below is one this repository has actually produced.
+
+**`API token required but not found.`** Exit 2, before any request. Set
+`BRIGHTDATA_API_TOKEN`, or write it to `.env`, or run `brightdata login`.
+
+**`FAIL  @name  Sorry, this page isn't available.`** Exit 1. The handle does not
+exist, usually a typo. This comes back in about 15 seconds rather than waiting
+out the timeout.
+
+**`OK  @name  0 posts  (no posts in the requested window)`** Exit 0, and correct.
+The API reports an empty window as an error row on the input. It is a success
+with no records, not a failure.
+
+**`FAIL  @name  timeout`** Exit 1. A single request gives up after 180 seconds.
+Run it again. Runs of the same command here have taken between 2 and 6 minutes
+for two handles, so the API's speed varies by the day.
+
+Any `FAIL` exits 1, so a run is safe to gate a script on.
 
 ## How it works
 

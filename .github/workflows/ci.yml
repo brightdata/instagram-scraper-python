@@ -18,3 +18,61 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest
+
+  # Runs the README's own quickstart on a machine with nothing installed.
+  # The quickstart shipped broken once because it was only ever run from a
+  # working copy that already had the package. A promise in prose rots while
+  # the tests stay green, so the prose is executed here instead.
+  # No token, so the API is never called and this job is free and never flaky.
+  # It ends one step short of the data, at the point where the SDK asks for
+  # credentials, which proves the install, the entry point and the imports.
+  coldstart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Run the README quickstart from scratch
+        run: |
+          set -o pipefail
+          python - <<'PY' > "$RUNNER_TEMP/quickstart.sh"
+          import pathlib
+          import re
+          import sys
+
+          readme = pathlib.Path("README.md").read_text(encoding="utf-8")
+          section = readme.split("## Quickstart", 1)[1]
+          block = re.search(r"```bash\n(.*?)```", section, re.S).group(1)
+
+          for required in ("git clone", "pip install", "ig-scraper"):
+              if required not in block:
+                  sys.exit(f"the quickstart no longer contains {required!r}")
+
+          steps = []
+          for line in block.splitlines():
+              if line.startswith("export BRIGHTDATA_API_TOKEN"):
+                  continue  # no secret in the free job
+              if line.startswith("ig-scraper"):
+                  continue  # run below, so the exit code can be checked
+              if line.startswith("git clone"):
+                  line = 'git clone -q "$GITHUB_WORKSPACE" repo'  # this commit, not main
+              elif line.startswith("cd "):
+                  line = "cd repo"
+              steps.append(line)
+
+          steps += [
+              "set +e",
+              "ig-scraper nasa --limit 1 > out.txt 2> err.txt",
+              "code=$?",
+              "set -e",
+              'test "$code" = "2" || { echo "expected exit 2, got $code"; cat err.txt; exit 1; }',
+              'grep -qi token err.txt || { echo "no token message"; cat err.txt; exit 1; }',
+              'echo "cold start ok: clone, install, entry point and imports all work"',
+          ]
+          print("\n".join(steps))
+          PY
+          echo "--- generated from README.md ---"
+          cat "$RUNNER_TEMP/quickstart.sh"
+          echo "--- running ---"
+          cd "$RUNNER_TEMP" && bash -e "$RUNNER_TEMP/quickstart.sh"
