@@ -1,8 +1,8 @@
 # instagram-scraper-python
 
-Get a creator's recent Instagram posts as JSON, in Python, on the
-[Bright Data Scraper API](https://brightdata.com/products/web-scraper). One
-command in, one file out.
+Recent Instagram posts as JSON, in Python, on the
+[Bright Data Scraper API](https://brightdata.com/products/web-scraper).
+Posts only, one command.
 
 ## Quickstart
 
@@ -16,24 +16,14 @@ export BRIGHTDATA_API_TOKEN=your_token
 ig-scraper nasa natgeo
 ```
 
-`python -m ig_scraper nasa natgeo` does the same thing. This is a reference
-repository, not a published package, so install it from the clone.
+Get a token from the
+[Bright Data control panel](https://brightdata.com/cp/setting/users). The SDK
+reads `BRIGHTDATA_API_TOKEN` on its own, from the environment or from a `.env`
+file in the working directory. Copy `.env.example` to `.env` if you prefer a
+file.
 
-**This costs nothing to try.** New Bright Data accounts get
-[5,000 free credits a month](https://docs.brightdata.com/general/account/billing-and-pricing/free-tier),
-usable across the Web Scraper API and the other APIs. The Web Scraper API spends
-one credit per record, so the command above uses 10 of your 5,000. No card is
-needed to start, and credits reset on the first of each month without rolling
-over.
-
-Get a token from the [Bright Data control panel](https://brightdata.com/cp/setting/users).
-The SDK reads `BRIGHTDATA_API_TOKEN` on its own, from the environment or from a
-`.env` file in the working directory. Copy `.env.example` to `.env` if you
-prefer a file. If you have run `brightdata login`, it uses those credentials and
-you can skip the export.
-
-Each result is printed the moment it lands, so nothing is held back for a slower
-account later in the list:
+New accounts get
+[5,000 free credits a month](https://docs.brightdata.com/general/account/billing-and-pricing/free-tier).
 
 ```
 Fetching up to 5 recent posts per account, for: nasa, natgeo
@@ -46,28 +36,28 @@ got     @natgeo: 5 posts
 Saved 10 posts as JSON to instagram.json (34 fields per post)
 ```
 
-That is a real run, copied from a terminal that was piped to a file. In an
-interactive terminal each `asking` line is a spinner with a running clock
-instead, so you can see it is working rather than hung:
+In a terminal each `asking` line is a spinner with a running clock. Results
+print as they land, so a slow account never holds up the ones already done.
 
 ```
-⠹ @nasa 0:01:47
+--limit N    posts per account, default 5, minimum 1
+--out PATH   output file, default instagram.json
 ```
 
-A post record has 33 to 36 fields, depending on the post. The ones most people
-want:
+`python -m ig_scraper` works too.
+
+## The data
+
+A post has 33 to 36 fields. The ones most people want:
 
 ```
 url  date_posted  description  hashtags  likes  num_comments  user_posted
 ```
 
-Nothing is hardcoded. Whatever the API returns for a post is what lands in the
-file.
+Nothing is hardcoded, so whatever the API returns is what lands in the file.
 
 <details>
-<summary>Every field in a real record, and where to look up what each one means</summary>
-
-From one live `nasa` post, 34 fields:
+<summary>All 34 fields from a real post</summary>
 
 ```
 alt_text  audio  audio_url  content_id  content_type  date_posted  description
@@ -78,16 +68,14 @@ profile_image_link  profile_url  shortcode  thumbnail  timestamp  url
 user_posted  user_posted_id  videos_duration
 ```
 
-A description and a data type for every field, plus Bright Data's own sample
-response, are on the dataset page in the control panel:
-[Instagram posts, collect by URL](https://brightdata.com/cp/scrapers/gd_lk5ns7kz21pck8jpis/pdp/overview).
-Open the Dictionary section there. That page also states the expected speed,
-an average of 55 seconds per input.
+Descriptions and data types are on the
+[dataset page](https://brightdata.com/cp/scrapers/gd_lk5ns7kz21pck8jpis/pdp/overview),
+under Dictionary.
 
 </details>
 
 <details>
-<summary>The whole output file from <code>ig-scraper nasa --limit 1</code>, one real post</summary>
+<summary>A whole output file, from <code>ig-scraper nasa --limit 1</code></summary>
 
 ```json
 {
@@ -289,15 +277,47 @@ an average of 55 seconds per input.
 
 </details>
 
-That block is [`examples/sample_output.json`](examples/sample_output.json)
-byte for byte, from a live run on 14 August 2026. A test keeps the two
-identical, so regenerating the sample fails the build until you paste the new
-file in here. That is the point.
+## When it fails
 
-## If you would rather your coding agent did this
+| you see | what it means |
+| --- | --- |
+| `API token required but not found.` | Exit 2, before any request. Set the token. |
+| `failed  @name: Sorry, this page isn't available.` | Exit 1. No such account, usually a typo. Comes back in about 15 seconds. |
+| `got     @name: 0 posts, the account has no public posts in the period searched` | Exit 0, and correct. The API reports an empty window as an error row. |
+| `failed  @name: timeout` | Exit 1. A request gives up after 180 seconds. Run it again. |
 
-Claude Code, Codex and Cursor can fetch this data without you writing any Python.
-Install the Bright Data CLI and connect it to your agent:
+Any failure exits 1, so a run is safe to gate a script on.
+
+## How it works
+
+One call per account:
+
+```python
+client.search.instagram.posts("https://www.instagram.com/nasa/", num_of_posts=5)
+```
+
+There is no second collection step. Discovery already returns the complete
+record, 34 fields against 33 from collecting the same post afterwards. The
+second call cost another credit per post, added 75 seconds, and returned nothing
+for accounts whose recent posts are reels.
+
+Three things that cost time to find:
+
+- A record carries both `shortcode` and `url`. The SDK docstrings list only
+  `shortcode`.
+- An empty date window arrives as an error row on the input, not an empty list,
+  reading "There are no public posts in the profile for the specified period".
+  That is a success with no records. The code matches on that message, not on
+  `error_code`, because a dead account uses the same code.
+- `SyncBrightDataClient` builds its event loop in `__enter__`. Unentered, it
+  fails with `AttributeError: 'NoneType' object has no attribute
+  'run_until_complete'`, which points nowhere near the cause.
+
+All of it is [scrape.py](src/ig_scraper/scrape.py), under 170 lines.
+
+## Coding agents
+
+Claude Code, Codex and Cursor can fetch this without the Python:
 
 ```bash
 npm install -g @brightdata/cli
@@ -305,103 +325,14 @@ brightdata login
 brightdata add mcp --agent claude-code --global
 ```
 
-Use `--agent codex` or `--agent cursor` instead for those. Then ask your agent
-for the data in plain words. Ready-made agent skills, including one that covers
-Instagram profiles, posts and reels, are at
-[github.com/brightdata/skills](https://github.com/brightdata/skills).
+Use `--agent codex` or `--agent cursor` for those. Ready-made skills are at
+[brightdata/skills](https://github.com/brightdata/skills).
 
-The same CLI does this job in one line without an agent, and without this
-repository:
+The same CLI does the job in one line, with no agent and no clone:
 
 ```bash
 brightdata pipelines instagram_posts "https://instagram.com/nasa"
 ```
-
-Use that if you want the data. Read this repository if you want to see how the
-API behaves and why the code handles it the way it does.
-
-## Options
-
-```
---limit N    posts per handle, default 5, must be 1 or more
---out PATH   output file, default instagram.json
-```
-
-## When it does not work
-
-Every message below is one this repository has actually produced.
-
-**`API token required but not found.`** Exit 2, before any request. Set
-`BRIGHTDATA_API_TOKEN`, or write it to `.env`, or run `brightdata login`.
-
-**`failed  @name: Sorry, this page isn't available.`** Exit 1. The handle does not
-exist, usually a typo. This comes back in about 15 seconds rather than waiting
-out the timeout.
-
-**`got     @name: 0 posts, the account has no public posts in the period searched`** Exit 0, and correct.
-The API reports an empty window as an error row on the input. It is a success
-with no records, not a failure.
-
-**`failed  @name: timeout`** Exit 1. A single request gives up after 180 seconds.
-Run it again. Runs of the same command here have taken between 2 and 6 minutes
-for two handles, so the API's speed varies by the day.
-
-Any `FAIL` exits 1, so a run is safe to gate a script on.
-
-## How it works
-
-One call per handle:
-
-```python
-client.search.instagram.posts("https://www.instagram.com/nasa/", num_of_posts=5)
-```
-
-There is no second collection step, and that is deliberate. The obvious design
-is discover post URLs, then collect each one. We built that first and measured
-it. Discovery already returns the complete record: 34 fields for a nasa post,
-against 33 from collecting the same post afterwards. The second call bought
-nothing, cost another record per post, added 75 seconds, and returned zero rows
-for `natgeo`, whose recent posts are reels and so are not in the posts dataset.
-
-Three more things that cost time to find:
-
-- A post record carries both `shortcode` and `url`. The SDK docstrings list
-  `shortcode` and leave out `url`.
-- When a date window matches nothing, the API does not return an empty list. It
-  returns an error row on the input, with the message "There are no public posts
-  in the profile for the specified period". That is a success with zero records,
-  and it prints as `0 posts` with that explanation attached. The code
-  matches on that message, not on `error_code`, because a genuinely dead page
-  uses the same code.
-- `SyncBrightDataClient` builds its event loop in `__enter__`. Call a method on
-  one you never entered and you get `AttributeError: 'NoneType' object has no
-  attribute 'run_until_complete'`, which does not sound like the actual problem.
-
-The whole thing is [`src/ig_scraper/scrape.py`](src/ig_scraper/scrape.py), under
-170 lines.
-
-## Cost and time
-
-One record costs one credit. New accounts get 5,000 free credits a month, so the
-first 5,000 posts each month cost nothing. After that, Instagram records are
-$0.002 each, meaning five posts for one handle is one cent.
-
-Accounts are fetched one after another. Bright Data's dataset page states an
-average of 55 seconds per input. Five runs of the two-account command here took
-2:46, 3:20, 4:02, 5:15 and 5:50, so between 1 and 3 minutes per account is a
-safer expectation, and the API is slower on some days than others. A single
-request gives up after 180 seconds, and that shows as `failed`, not as an
-account with nothing to show.
-
-## What this is not
-
-Posts only, one command. No reels or comments as separate commands, no
-profiles, no scheduling, no deduplication, no database, no retries.
-
-Reels arrive through the posts endpoint anyway. In the run above, all five of
-`natgeo`'s recent posts were reels, and one of `nasa`'s five was.
-
-If you need more, this is a short file and a good place to start.
 
 ## Development
 
@@ -411,42 +342,9 @@ pytest
 ruff check .
 ```
 
-The tests run without a token. The client is a stub.
-
-## The two things in the Actions tab
-
-There are two workflows and they do different jobs.
-
-**"Tests (automatic, no API calls, free)"** starts by itself whenever anyone
-pushes a commit or opens a pull request. Nobody has to do anything. It never
-touches Instagram, so it needs no token and costs nothing. It does two jobs:
-
-- runs the tests and the code style check
-- starts from an empty machine, follows the install steps in this README
-  literally, and stops at the point where the tool asks for an API token
-
-That second job exists because these install instructions were wrong once. They
-were only ever tried from a computer that already had the package installed, so
-they looked fine and were not. Now a machine with nothing on it tries them on
-every push, and the build fails if they stop working.
-
-**"Scrape Instagram for real (start it yourself, uses your API token)"** does
-nothing on its own. You start it from the Actions tab, choose which handles and
-how many posts, and it fetches live data. It needs a `BRIGHTDATA_API_TOKEN`
-repository secret, under Settings, Secrets and variables, Actions. It spends
-about $0.002 per post.
-
-It is deliberately not automatic. Running it on every commit would spend money
-for no reason, and a slow day at the API would show up as a failed build on your
-repository when nothing is wrong with your code.
-
-Its results appear in three places:
-
-| where | what you get |
-| --- | --- |
-| the "Fetch the posts" step | one line per handle as each finishes |
-| the "Show what was found" step, and the run's summary page | a table of every post, and one full record |
-| the run's summary page, under Artifacts | `instagram.json`, the actual data, to download |
+Tests need no token. CI runs them on every push, and separately follows this
+README's install steps on an empty machine, so the quickstart cannot rot. A
+second workflow, started by hand from the Actions tab, runs a real scrape.
 
 ## License
 
