@@ -1,9 +1,10 @@
 # instagram-scraper-python
 
-Recent Instagram posts as JSON, in Python, on the
+Instagram profiles, posts, reels and comments as JSON, in Python. No Instagram
+login, no browser. Built on the
 [Bright Data Scraper API](https://brightdata.com/products/web-scraper).
-One command for posts. The SDK underneath reaches profiles, reels and
-comments too, shown below.
+
+One command for posts. The SDK underneath reaches the other three, shown below.
 
 Built on the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
 Full API docs:
