@@ -5,6 +5,7 @@ name: Tests (automatic, no API calls, free)
 on:
   push:
   pull_request:
+  workflow_dispatch:  # a Run workflow button, to re-run the tests without a commit
 
 permissions:
   contents: read
