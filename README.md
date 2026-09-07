@@ -1,7 +1,6 @@
 # instagram-scraper-python
 
 [![Daily check: does the README still work?](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml/badge.svg)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml)
-[![Tests](https://github.com/brightdata/instagram-scraper-python/actions/workflows/ci.yml/badge.svg)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/ci.yml)
 
 Instagram profiles, posts, reels and comments as JSON, in Python. No Instagram
 login, no browser. Built on the
