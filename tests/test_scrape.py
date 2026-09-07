@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 import sys
+import typing
 from contextlib import nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -192,6 +193,34 @@ def test_a_missing_token_is_a_message_not_a_traceback(monkeypatch, capsys):
     monkeypatch.setattr(cli, "client_context", no_token)
     assert cli.main(["nasa"]) == 2
     assert "token" in capsys.readouterr().err
+
+
+def test_the_sdk_contract_the_readme_relies_on():
+    """Offline, no token. Every claim the README makes about the SDK, pinned here."""
+    from brightdata.scrapers import api_client, workflow
+    from brightdata.scrapers.instagram.scraper import InstagramScraper
+    from brightdata.scrapers.instagram.search import InstagramSearchScraper
+
+    # All eight endpoints, and the trigger/status/fetch trio on every collect one.
+    for name in ("profiles", "posts", "reels", "comments"):
+        for suffix in ("", "_trigger", "_status", "_fetch"):
+            assert callable(getattr(InstagramScraper, name + suffix, None)), name + suffix
+    for name in ("profiles", "posts", "reels", "reels_all"):
+        assert callable(getattr(InstagramSearchScraper, name, None)), name
+
+    # Scrapers go through trigger, progress and snapshot. There is no sync path.
+    client = next(c for c in vars(api_client).values() if hasattr(c, "TRIGGER_URL"))
+    urls = [v for k, v in vars(client).items() if k.endswith("_URL")]
+    assert urls and not any(u.endswith("/scrape") for u in urls), urls
+
+    # Every method accepts a list of URLs, so a batch is one call.
+    url = inspect.signature(InstagramScraper.posts).parameters["url"].annotation
+    assert any(typing.get_origin(a) is list for a in typing.get_args(url)), url
+
+    # Error rows arrive only because the SDK asks for them. The API default is off.
+    executor = next(c for c in vars(workflow).values() if hasattr(c, "execute"))
+    for fn in (client.trigger, executor.execute):
+        assert inspect.signature(fn).parameters["include_errors"].default is True, fn
 
 
 def test_the_readme_shows_the_example_file_verbatim():
