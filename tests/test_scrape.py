@@ -127,24 +127,6 @@ def test_we_do_not_ask_the_sdk_to_create_zones(monkeypatch):
     assert seen.get("auto_create_zones") is False
 
 
-def test_the_sdk_still_offers_the_call_this_repo_makes():
-    """A stub client cannot notice an SDK rename. This can, offline and unauthenticated.
-
-    Without it, dropping num_of_posts upstream leaves every test green and every
-    user broken.
-    """
-    from brightdata import SyncBrightDataClient
-    from brightdata.scrapers.instagram.search import InstagramSearchScraper
-    from brightdata.sync_client import SyncInstagramSearchScraper
-
-    assert isinstance(SyncBrightDataClient.search, property)
-    assert callable(SyncInstagramSearchScraper.posts)
-
-    params = inspect.signature(InstagramSearchScraper.posts).parameters
-    assert "url" in params, params
-    assert "num_of_posts" in params, params
-
-
 def fake_cli(monkeypatch, outcome_for):
     """Point the CLI at a client that never exists and a handler we control."""
     cli = sys.modules["ig_scraper.__main__"]
@@ -207,6 +189,7 @@ def test_the_sdk_contract_the_readme_relies_on():
             assert callable(getattr(InstagramScraper, name + suffix, None)), name + suffix
     for name in ("profiles", "posts", "reels", "reels_all"):
         assert callable(getattr(InstagramSearchScraper, name, None)), name
+    assert "num_of_posts" in inspect.signature(InstagramSearchScraper.posts).parameters
 
     # Scrapers go through trigger, progress and snapshot. There is no sync path.
     client = next(c for c in vars(api_client).values() if hasattr(c, "TRIGGER_URL"))
