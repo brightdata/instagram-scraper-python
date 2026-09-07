@@ -86,6 +86,42 @@ zz_not_a_real_account_zz failed: Crawler error: Cannot read properties of null (
 An account with nothing recent is a success with no posts. The reason lands in
 `note`, not `error`.
 
+## Beyond this CLI
+
+The CLI takes two flags. The call underneath takes more, including a date
+window. Reach it directly:
+
+```python
+from brightdata import SyncBrightDataClient
+from ig_scraper.scrape import rows
+
+with SyncBrightDataClient(auto_create_zones=False) as client:
+    result = client.search.instagram.posts(
+        "https://www.instagram.com/nasa/",
+        num_of_posts=3,
+        start_date="08-01-2026",   # MM-DD-YYYY
+        end_date="09-07-2026",
+    )
+    for post in rows(result):
+        print(post["date_posted"], post["content_type"], post["url"])
+```
+
+```
+2026-08-19T14:11:47.000Z Image https://www.instagram.com/p/DcOX3hWFiey/
+2026-08-18T19:37:40.000Z Reel https://www.instagram.com/reel/DcMXl1IPNtB/
+2026-08-12T21:28:58.000Z Image https://www.instagram.com/p/Db9IVmrDvQ4/
+```
+
+`post_type="Post"` filters reels out, verified. `post_type="Reel"` returned no
+rows in testing even with a reel inside the window, so do not rely on it.
+`posts_to_not_include` takes a list of post IDs. Reels and comments have their
+own endpoints, `client.search.instagram.reels` and
+`client.scrape.instagram.comments`.
+
+Pass `auto_create_zones=False` as above. Left on, the SDK tries to create Web
+Unlocker and SERP zones on startup, which this scraper never uses and which
+fail on accounts without a payment method.
+
 ## The data
 
 The fields most people want:
