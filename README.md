@@ -134,11 +134,12 @@ The code hardcodes no field list. Whatever the API returns lands in the file.
 
 <!-- fields:start -->
 <details>
-<summary>All 43 fields, with type and description</summary>
+<summary>All 44 fields, with type and description</summary>
 
-From the dataset schema itself, via
-`client.datasets.instagram_posts.get_metadata()`. A post carries the fields
-that apply to it, so the sample below has 34 of these 43.
+Regenerated every day from the dataset schema, via
+`client.datasets.instagram_posts.get_metadata()`, so it cannot go stale. A
+post carries the fields that apply to it; the sample below has 34
+of these 44.
 
 | field | type | description |
 | --- | --- | --- |
@@ -185,6 +186,7 @@ that apply to it, so the sample below has 34 of these 43.
 | `photos_number` | number | Total number of photos attached to the post |
 | `audio_url` | url | Direct URL of the audio track used in the post |
 | `thumbnail_array` | array | Deprecated: array of thumbnail URLs for the post media |
+| `country` | text | Some profiles are restricted by location. Please set the country code in Alpha-2 format |
 
 </details>
 <!-- fields:end -->
