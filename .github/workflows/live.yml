@@ -10,7 +10,7 @@
 #
 # Not on push: that would spend money per commit, and a slow day at the API
 # would show up as a failed build on your repository.
-name: Live check (daily smoke, weekly full README; uses your token)
+name: Live check
 
 run-name: "${{ github.event.schedule == '0 6 * * 1' && 'Weekly check: does every README block still work?' || github.event_name == 'schedule' && 'Daily check: is anything broken?' || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
 
@@ -41,7 +41,7 @@ jobs:
   scrape:
     name: Fetch the posts and attach them to this run
     runs-on: ubuntu-latest
-    timeout-minutes: 40  # 14 README blocks at one to three minutes each; anything past this is stuck
+    timeout-minutes: 20  # fetch, async path, table; the README blocks have their own jobs
     env:
       BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
       # On the daily schedule there are no inputs, so fall back to one cheap post.
