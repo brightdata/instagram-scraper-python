@@ -25,6 +25,13 @@ jobs:
         run: ruff check .
       - name: Run the tests
         run: pytest
+      - name: README headings are well formed
+        # A section rewrite once produced "## The data## The data" and shipped;
+        # a heading with a second run of hashes mid-line is never intended.
+        run: |
+          if grep -nE '^#+ .*#{2,} ' README.md; then
+            echo "::error::malformed heading in README.md"; exit 1
+          fi
 
   # These install steps shipped broken once, because they were only ever run
   # from a working copy that already had the package. This job follows the
