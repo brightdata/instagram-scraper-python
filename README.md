@@ -65,6 +65,27 @@ for outcome in scrape(["nasa"], limit=2):
 63408 631 https://www.instagram.com/reel/DcCH2ZygIiP/
 ```
 
+`scrape` never raises for one bad account. Each `Outcome` carries `handle`,
+`posts`, `error` and `note`. Check `ok` before reading `posts`:
+
+```python
+from ig_scraper import scrape
+
+for outcome in scrape(["nasa", "zz_not_a_real_account_zz"], limit=1):
+    if outcome.ok:
+        print(f"{outcome.handle}: {len(outcome.posts)} posts")
+    else:
+        print(f"{outcome.handle} failed: {outcome.error}")
+```
+
+```
+nasa: 1 posts
+zz_not_a_real_account_zz failed: Crawler error: Cannot read properties of null (reading 'pk')
+```
+
+An account with nothing recent is a success with no posts. The reason lands in
+`note`, not `error`.
+
 ## The data
 
 The fields most people want:
@@ -338,7 +359,7 @@ that apply to it, so the sample below has 34 of these 43.
 | you see | what it means |
 | --- | --- |
 | `API token required but not found.` | Exit 2, before any request. Set the token. |
-| `failed  @name: Sorry, this page isn't available.` | Exit 1. No such account, usually a typo. Comes back in about 15 seconds. |
+| `failed  @name: ...` | Exit 1. No such account, usually a typo. The wording varies: "Sorry, this page isn't available." and "Crawler error: Cannot read properties of null" are both this. |
 | `got     @name: 0 posts, the account has no public posts in the period searched` | Exit 0, and correct. The API reports an empty window as an error row. |
 | `failed  @name: timeout` | Exit 1. A request gives up after 180 seconds. Run it again. |
 
@@ -355,6 +376,13 @@ npx -p @brightdata/cli bdata pipelines instagram_posts "https://www.instagram.co
 
 Agent skills for Claude Code, Codex and Cursor:
 [brightdata/skills](https://github.com/brightdata/skills).
+
+## Support
+
+Bugs in this repo:
+[open an issue](https://github.com/brightdata/instagram-scraper-python/issues).
+Anything about the API, your account or your credits:
+[Bright Data support](https://brightdata.zendesk.com/hc/en-us/requests/new).
 
 ## License
 

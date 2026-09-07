@@ -134,7 +134,12 @@ def client_context(client: Any = None) -> Any:
     run_until_complete. Callers wanting progress hold this open and drive
     scrape_handle themselves, as the CLI does.
     """
-    return nullcontext(client) if client is not None else SyncBrightDataClient()
+    # auto_create_zones defaults to True: the SDK tries to create a Web Unlocker
+    # zone on startup, which this scraper never uses. Creating a zone needs a
+    # payment method, so leaving it on breaks the first run for free accounts.
+    return nullcontext(client) if client is not None else SyncBrightDataClient(
+        auto_create_zones=False
+    )
 
 
 def scrape(handles: Iterable[str], limit: int = 5, client: Any = None) -> list[Outcome]:

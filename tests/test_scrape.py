@@ -91,6 +91,9 @@ def test_a_client_we_own_gets_entered(monkeypatch):
     entered = []
 
     class Fake:
+        def __init__(self, **kwargs):
+            pass
+
         def __enter__(self):
             entered.append(True)
             return stub([])
@@ -102,6 +105,25 @@ def test_a_client_we_own_gets_entered(monkeypatch):
     monkeypatch.setattr(sys.modules["ig_scraper.scrape"], "SyncBrightDataClient", Fake)
     assert scrape(["nasa"])[0].ok
     assert entered == [True, False]
+
+
+def test_we_do_not_ask_the_sdk_to_create_zones(monkeypatch):
+    """Zone creation needs a payment method and this scraper never uses a zone."""
+    seen = {}
+
+    class Fake:
+        def __init__(self, **kwargs):
+            seen.update(kwargs)
+
+        def __enter__(self):
+            return stub([])
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(sys.modules["ig_scraper.scrape"], "SyncBrightDataClient", Fake)
+    scrape(["nasa"])
+    assert seen.get("auto_create_zones") is False
 
 
 def test_the_sdk_still_offers_the_call_this_repo_makes():
