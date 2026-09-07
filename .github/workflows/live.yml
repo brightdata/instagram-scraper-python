@@ -1,13 +1,19 @@
-# Started by hand from the Actions tab. Calls the real API, so it needs the
-# BRIGHTDATA_API_TOKEN secret and spends one credit per post.
+# The only workflow that calls the real API. Needs the BRIGHTDATA_API_TOKEN
+# secret and spends about one credit per post.
+#
+# Two ways it runs:
+#   by hand, from the Actions tab, to scrape whatever accounts you choose
+#   every day at 06:00 UTC, one post from nasa, to catch anything that broke
 #
 # Not on push: that would spend money per commit, and a slow day at the API
 # would show up as a failed build on your repository.
-name: Scrape Instagram for real (start it yourself, uses your API token)
+name: Real API run (daily check, or start it yourself; uses your token)
 
-run-name: Scrape ${{ inputs.handles }}, ${{ inputs.limit }} posts each
+run-name: "${{ github.event_name == 'schedule' && 'Daily check: is anything broken?' || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
 
 on:
+  schedule:
+    - cron: "0 6 * * *"
   workflow_dispatch:
     inputs:
       handles:
@@ -16,6 +22,10 @@ on:
       limit:
         description: How many recent posts to fetch for each handle
         default: "2"
+      validate:
+        description: Also run the daily checks (async path, schema drift)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -24,7 +34,13 @@ jobs:
   scrape:
     name: Fetch the posts and attach them to this run
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
+    env:
+      BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
+      # On the daily schedule there are no inputs, so fall back to one cheap post.
+      HANDLES: ${{ inputs.handles || 'nasa' }}
+      LIMIT: ${{ inputs.limit || '1' }}
+      VALIDATE: ${{ github.event_name == 'schedule' || inputs.validate }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -32,31 +48,36 @@ jobs:
           python-version: "3.12"
       - name: Install the package
         run: pip install -e .
+
       - name: Fetch the posts from Instagram
-        env:
-          BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
-          HANDLES: ${{ inputs.handles }}
-          LIMIT: ${{ inputs.limit }}
         run: |
           test -n "$BRIGHTDATA_API_TOKEN" || {
             echo "No API token. Add BRIGHTDATA_API_TOKEN under" >&2
             echo "Settings, Secrets and variables, Actions, then start this again." >&2
             exit 1
           }
-          python -m ig_scraper $HANDLES --limit "$LIMIT"
+          # One retry, only on an API timeout. A slow day is not a broken build.
+          set +e
+          python -m ig_scraper $HANDLES --limit "$LIMIT" 2>&1 | tee run.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" != "0" ] && grep -q "timeout" run.log; then
+            echo "::warning::The API timed out. Waiting 30s and trying once more."
+            sleep 30
+            python -m ig_scraper $HANDLES --limit "$LIMIT" 2>&1 | tee run.log
+            code=${PIPESTATUS[0]}
+          fi
+          exit "$code"
+
       - name: Show what was found
         if: always()
         run: |
           set -o pipefail
           test -f instagram.json || exit 0
-          # tee, not >>, so the result is readable in this step's log as well as
-          # on the run summary page. A step that prints nothing looks broken.
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json
 
           doc = json.load(open("instagram.json"))
           print(f"Run at {doc['generated_at']}\n")
-
           print("| handle | posts | fields | newest post |")
           print("| --- | --- | --- | --- |")
           for entry in doc["handles"]:
@@ -66,8 +87,6 @@ jobs:
                   f"| {entry['handle']} | {len(posts)} | {len(posts[0]) if posts else 0} "
                   f"| {newest.get('url') if newest else '-'} |"
               )
-
-          # Every post, one line each, so the log is enough to check a run.
           for entry in doc["handles"]:
               if not entry["posts"]:
                   continue
@@ -79,9 +98,6 @@ jobs:
                       f"| {post.get('date_posted')} | {post.get('url')} "
                       f"| {post.get('likes')} | {post.get('num_comments')} |"
                   )
-
-          # One record in full, whatever the limit, so field values are checkable
-          # without downloading the artifact.
           first = next((p for e in doc["handles"] for p in e["posts"]), None)
           if first:
               print("\n<details><summary>First record in full</summary>\n")
@@ -90,6 +106,55 @@ jobs:
               print("```\n")
               print("</details>")
           PY
+
+      # The two daily checks. Discovery is already covered by the step above.
+      - name: Does the async trigger, status, fetch path still work?
+        if: env.VALIDATE == 'true'
+        run: |
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import time
+
+          from brightdata import SyncBrightDataClient
+
+          url = "https://www.instagram.com/p/Db_SePSltfz/"
+          with SyncBrightDataClient(auto_create_zones=False) as c:
+              job = c.scrape.instagram.posts_trigger(url)
+              sid = job.snapshot_id
+              for _ in range(72):  # up to 6 minutes
+                  status = c.scrape.instagram.posts_status(sid)
+                  if status in ("ready", "failed", "canceled"):
+                      break
+                  time.sleep(5)
+              assert status == "ready", f"snapshot {sid} ended as {status}"
+              rows = c.scrape.instagram.posts_fetch(sid)
+              rows = rows if isinstance(rows, list) else [rows]
+              assert rows and rows[0].get("url"), "fetch returned no record"
+          print(f"\nAsync path ok: trigger, status, fetch returned {len(rows)} record(s).")
+          PY
+
+      - name: Has the field schema drifted from the README table?
+        if: env.VALIDATE == 'true'
+        run: |
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import pathlib
+          import re
+
+          from brightdata import SyncBrightDataClient
+
+          readme = pathlib.Path("README.md").read_text(encoding="utf-8")
+          documented = set(re.findall(r"^\| `([a-z_]+)` \| \w+ \|", readme, re.M))
+          with SyncBrightDataClient(auto_create_zones=False) as c:
+              live = set(c.datasets.instagram_posts.get_metadata().fields)
+          added, removed = sorted(live - documented), sorted(documented - live)
+          print(f"\nSchema: README lists {len(documented)} fields, the API reports {len(live)}.")
+          if added or removed:
+              print(f"::warning::Field table drifted. New: {added}. Gone: {removed}.")
+              print(f"\nNew in the API, missing from the README: {added}")
+              print(f"In the README, gone from the API: {removed}")
+          else:
+              print("Schema ok: the README table matches the live dataset.")
+          PY
+
       - name: Attach instagram.json so you can download it
         uses: actions/upload-artifact@v7
         if: always()
