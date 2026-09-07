@@ -34,7 +34,7 @@ jobs:
   scrape:
     name: Fetch the posts and attach them to this run
     runs-on: ubuntu-latest
-    timeout-minutes: 120  # the README runner executes 14 blocks in sequence
+    timeout-minutes: 40  # 14 README blocks at one to three minutes each; anything past this is stuck
     env:
       BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
       # On the daily schedule there are no inputs, so fall back to one cheap post.
@@ -173,7 +173,10 @@ jobs:
               argv = ["bash", "-e", "-c", cmd] if lang == "bash" else [sys.executable, "-c", cmd]
               for attempt in (1, 2):
                   started = time.time()
-                  run = subprocess.run(argv, capture_output=True, text=True, timeout=1500)
+                  try:  # no block may run past 8 minutes; the SDK gives up at 3, reels at 7
+                      run = subprocess.run(argv, capture_output=True, text=True, timeout=480)
+                  except subprocess.TimeoutExpired:
+                      run = subprocess.CompletedProcess(argv, 1, "", "block timeout: no result within 8 minutes")
                   secs = round(time.time() - started)
                   out, err = run.stdout.strip(), run.stderr.strip()
                   if SECRET:
