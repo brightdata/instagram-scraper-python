@@ -6,7 +6,7 @@ login, no browser. Built on the
 
 One command for posts. The SDK underneath reaches the other three, shown below.
 
-Built on the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
+Uses the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
 Full API docs:
 [Web Scraper API](https://docs.brightdata.com/scraping-automation/web-data-apis/web-scraper-api/overview).
 
