@@ -7,7 +7,8 @@ Instagram profiles, posts, reels and comments as JSON, in Python. No Instagram
 login, no browser. Built on the
 [Bright Data Scraper API](https://brightdata.com/products/web-scraper).
 
-One command for posts. The SDK underneath reaches the other three, shown below.
+One command for posts. The SDK, and Bright Data's own CLI, reach the other
+three, both shown below.
 
 Uses the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
 Full API docs:
