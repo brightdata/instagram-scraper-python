@@ -4,7 +4,7 @@ Recent Instagram posts as JSON, in Python, on the
 [Bright Data Scraper API](https://brightdata.com/products/web-scraper).
 Posts only, one command.
 
-Built on the [Bright Data Python SDK](https://github.com/brightdata/bright-data-sdk-python).
+Built on the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
 Full API docs:
 [Web Scraper API](https://docs.brightdata.com/scraping-automation/web-data-apis/web-scraper-api/overview).
 
