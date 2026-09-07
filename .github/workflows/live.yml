@@ -42,14 +42,14 @@ jobs:
       LIMIT: ${{ inputs.limit || '1' }}
       VALIDATE: ${{ github.event_name == 'schedule' || inputs.validate }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"
       - name: Install the package and the Bright Data CLI
         run: |
           pip install -e .
-          npm i -g @brightdata/cli
+          npm i -g @brightdata/cli@0.3.4  # pinned: this job holds the API secret
 
       - name: Fetch the posts from Instagram
         run: |
@@ -138,6 +138,7 @@ jobs:
         if: env.VALIDATE == 'true'
         run: |
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import os
           import pathlib
           import re
           import subprocess
@@ -145,6 +146,10 @@ jobs:
           import time
 
           readme = pathlib.Path("README.md").read_text(encoding="utf-8")
+          # never execute anything inside the generated field table: its text comes from
+          # the API, and a fence in a description must not become a command
+          readme = re.sub(r"<!-- fields:start -->.*?<!-- fields:end -->", "", readme, flags=re.S)
+          SECRET = os.environ.get("BRIGHTDATA_API_TOKEN", "")
           SKIP = ("pip install", "export ", "npm i", "npm install",
                   "npx -p @brightdata/cli bdata login", "bdata login")
 
@@ -171,6 +176,8 @@ jobs:
                   run = subprocess.run(argv, capture_output=True, text=True, timeout=1500)
                   secs = round(time.time() - started)
                   out, err = run.stdout.strip(), run.stderr.strip()
+                  if SECRET:
+                      out, err = out.replace(SECRET, "***"), err.replace(SECRET, "***")
                   ok = run.returncode == 0 and bool(out if lang == "python" else out or err)
                   if ok or "timeout" not in (out + err).lower():
                       break
@@ -209,6 +216,7 @@ jobs:
           rows = ["| field | type | description |", "| --- | --- | --- |"]
           for name, spec in fields.items():
               desc = (spec.description or "").replace(" — ", ": ").replace("—", ":")
+              desc = " ".join(desc.split()).replace("`", "'").replace("|", "/")  # no fences, no table breaks
               rows.append(f"| `{name}` | {spec.type} | {desc} |")
           block = "\n".join([
               start,
@@ -244,7 +252,7 @@ jobs:
           echo "Committed the regenerated table."
 
       - name: Attach instagram.json so you can download it
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         if: always()
         with:
           name: instagram-json
