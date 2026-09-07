@@ -3,7 +3,7 @@
 #
 # Three ways it runs:
 #   by hand, from the Actions tab, to scrape whatever accounts you choose
-#   every day at 06:00 UTC, Tuesday to Sunday: one post from nasa, the async
+#   every day at 06:00 UTC except Monday: one post from nasa, the async
 #     path, and the field table, about two credits
 #   every Monday at 06:00 UTC: the same, plus every code block in the README,
 #     about 37 credits and 30 minutes
@@ -16,7 +16,7 @@ run-name: "${{ github.event.schedule == '0 6 * * 1' && 'Weekly check: does every
 
 on:
   schedule:
-    - cron: "0 6 * * 2-7"  # daily smoke, Tuesday to Sunday
+    - cron: "0 6 * * 0,2-6"  # daily smoke, every day except Monday
     - cron: "0 6 * * 1"    # Monday: the whole README
   workflow_dispatch:
     inputs:
