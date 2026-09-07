@@ -2,7 +2,8 @@
 
 Recent Instagram posts as JSON, in Python, on the
 [Bright Data Scraper API](https://brightdata.com/products/web-scraper).
-Posts only, one command.
+One command for posts. The SDK underneath reaches profiles, reels and
+comments too, shown below.
 
 Built on the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
 Full API docs:
@@ -86,24 +87,96 @@ zz_not_a_real_account_zz failed: Crawler error: Cannot read properties of null (
 An account with nothing recent is a success with no posts. The reason lands in
 `note`, not `error`.
 
-## Beyond this CLI
+## The rest of the API
 
-The CLI takes two flags. The call underneath takes more, including a date
-window. Reach it directly:
+The CLI covers one endpoint. The SDK has eight. Every call below was run today
+and prints what it printed.
+
+| you have | want | call |
+| --- | --- | --- |
+| a profile URL | recent posts | `client.search.instagram.posts(url, num_of_posts=5)` |
+| a username | the profile | `client.search.instagram.profiles("nasa")` |
+| a profile URL | the profile | `client.scrape.instagram.profiles(url)` |
+| a profile URL | recent reels | `client.search.instagram.reels(url, num_of_posts=5, timeout=420)` |
+| a profile URL | every reel ever | `client.search.instagram.reels_all(url)`, one credit per reel the account has posted |
+| post URLs | those posts | `client.scrape.instagram.posts([url, url])` |
+| reel URLs | those reels | `client.scrape.instagram.reels([url])` |
+| a post or reel URL | its comments | `client.scrape.instagram.comments(url)`, one credit per comment |
+
+Every one of these is an asynchronous job. The SDK triggers it, polls, and
+returns when it is ready. That is why a call takes one to three minutes, and
+why there is no faster path in Python. The API's synchronous endpoint, 20 URLs
+and a one-minute limit, is raw HTTP only.
+
+Error rows, like the empty-window one above, appear because the SDK asks for
+them with `include_errors=true`. The API default is off.
+
+All snippets share this setup:
 
 ```python
+import time
+
 from brightdata import SyncBrightDataClient
 from ig_scraper.scrape import rows
 
-with SyncBrightDataClient(auto_create_zones=False) as client:
-    result = client.search.instagram.posts(
-        "https://www.instagram.com/nasa/",
-        num_of_posts=3,
-        start_date="08-01-2026",   # MM-DD-YYYY
-        end_date="09-07-2026",
-    )
-    for post in rows(result):
-        print(post["date_posted"], post["content_type"], post["url"])
+NASA = "https://www.instagram.com/nasa/"
+NATGEO = "https://www.instagram.com/natgeo/"
+POST = "https://www.instagram.com/p/Dc1W1uFj-CW/"
+
+client = SyncBrightDataClient(auto_create_zones=False).__enter__()
+```
+
+`auto_create_zones=False` matters. Left on, the SDK tries to create Web
+Unlocker and SERP zones on startup, which this scraper never uses and which
+fail on accounts without a payment method.
+
+### Two accounts, one job
+
+A list of URLs is one job, not one per account.
+
+```python
+for post in rows(client.search.instagram.posts([NASA, NATGEO], num_of_posts=1)):
+    print(post["user_posted"], post["url"])
+```
+
+```
+nasa https://www.instagram.com/p/DcOX3hWFiey/
+natgeo https://www.instagram.com/reel/Dbru79IAdH-/
+```
+
+### Trigger now, fetch later
+
+For anything bigger than a few accounts, do not block a process for an hour.
+Trigger, keep the snapshot id, fetch when ready. Snapshots stay downloadable
+for 30 days.
+
+```python
+job = client.scrape.instagram.posts_trigger(POST)
+print("snapshot:", job.snapshot_id)
+while (status := client.scrape.instagram.posts_status(job.snapshot_id)) not in ("ready", "failed"):
+    time.sleep(5)
+print("status:", status)
+record = client.scrape.instagram.posts_fetch(job.snapshot_id)[0]
+print("fetched:", record["url"], "likes:", record["likes"])
+```
+
+```
+snapshot: sd_mtrapflrzynbfyid9
+status: ready
+fetched: https://www.instagram.com/p/Dc1W1uFj-CW/ likes: 184
+```
+
+### A date window
+
+```python
+result = client.search.instagram.posts(
+    NASA,
+    num_of_posts=3,
+    start_date="08-01-2026",   # MM-DD-YYYY
+    end_date="09-07-2026",
+)
+for post in rows(result):
+    print(post["date_posted"], post["content_type"], post["url"])
 ```
 
 ```
@@ -114,15 +187,47 @@ with SyncBrightDataClient(auto_create_zones=False) as client:
 
 `post_type="Post"` filters reels out, verified. `post_type="Reel"` returned no
 rows in testing even with a reel inside the window, so do not rely on it.
-`posts_to_not_include` takes a list of post IDs. Reels and comments have their
-own endpoints, `client.search.instagram.reels` and
-`client.scrape.instagram.comments`.
+`posts_to_not_include` takes a list of post IDs.
 
-Pass `auto_create_zones=False` as above. Left on, the SDK tries to create Web
-Unlocker and SERP zones on startup, which this scraper never uses and which
-fail on accounts without a payment method.
+### A profile, by username, no URL
 
-## The data
+```python
+profile = rows(client.search.instagram.profiles("nasa"))[0]
+print(profile["account"], "followers:", profile["followers"], "posts:", profile["posts_count"], "fields:", len(profile))
+```
+
+```
+nasa followers: 104395968 posts: 4913 fields: 29
+```
+
+### Comments on a post
+
+One credit per comment, so check `num_comments` on the post first.
+
+```python
+comments = rows(client.scrape.instagram.comments(POST))
+print(len(comments), "comments; first:", repr(comments[0]["comment"][:60]))
+```
+
+```
+5 comments; first: 'I only WISH that I could be there! What an incredible evenin'
+```
+
+### Recent reels
+
+Reels discovery is slower. The default 180-second timeout expired; 420 did not.
+
+```python
+for reel in rows(client.search.instagram.reels(NASA, num_of_posts=2, timeout=420)):
+    print(reel["date_posted"], reel["url"])
+```
+
+```
+2026-09-05T01:00:10.000Z https://www.instagram.com/p/Dc4u1yKPj_s/
+2026-08-18T19:37:40.000Z https://www.instagram.com/p/DcMXl1IPNtB/
+```
+
+## The data## The data
 
 The fields most people want:
 
