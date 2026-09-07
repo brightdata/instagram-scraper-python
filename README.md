@@ -101,8 +101,8 @@ An account with nothing recent is a success with no posts. The reason lands in
 ## The rest of the API
 
 The CLI covers one endpoint. The SDK has eight. Every snippet below is complete:
-paste it as is. Every one of them runs in Actions each day, and the badge at
-the top is the latest result.
+paste it as is. Every one of them runs in Actions each Monday, a smaller check
+runs every other day, and the badge at the top is the latest result.
 
 | you have | want | call |
 | --- | --- | --- |

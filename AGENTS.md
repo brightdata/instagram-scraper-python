@@ -32,8 +32,9 @@ SDK's own docstrings.
 ## Working here
 
 - `pytest` runs offline and needs no token. `ruff check .` must pass.
-- CI installs from the README's own commands on an empty machine, and a daily
-  workflow executes every fenced block in the README against the real API.
+- CI installs from the README's own commands on an empty machine. A weekly
+  workflow executes every fenced block in the README against the real API, and
+  a daily one runs a smaller live check.
   A snippet must be complete and paste-able on its own, and its shown output
   must be real.
 - The field table in the README sits between `<!-- fields:start -->` and

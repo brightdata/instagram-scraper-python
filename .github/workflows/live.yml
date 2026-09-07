@@ -1,19 +1,23 @@
 # The only workflow that calls the real API. Needs the BRIGHTDATA_API_TOKEN
 # secret and spends about one credit per post.
 #
-# Two ways it runs:
+# Three ways it runs:
 #   by hand, from the Actions tab, to scrape whatever accounts you choose
-#   every day at 06:00 UTC, one post from nasa, to catch anything that broke
+#   every day at 06:00 UTC, Tuesday to Sunday: one post from nasa, the async
+#     path, and the field table, about two credits
+#   every Monday at 06:00 UTC: the same, plus every code block in the README,
+#     about 37 credits and 30 minutes
 #
 # Not on push: that would spend money per commit, and a slow day at the API
 # would show up as a failed build on your repository.
-name: Daily check, does the README still work? (or start it yourself; uses your token)
+name: Live check (daily smoke, weekly full README; uses your token)
 
-run-name: "${{ github.event_name == 'schedule' && 'Daily check: does the README still work?' || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
+run-name: "${{ github.event.schedule == '0 6 * * 1' && 'Weekly check: does every README block still work?' || github.event_name == 'schedule' && 'Daily check: is anything broken?' || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
 
 on:
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "0 6 * * 2-7"  # daily smoke, Tuesday to Sunday
+    - cron: "0 6 * * 1"    # Monday: the whole README
   workflow_dispatch:
     inputs:
       handles:
@@ -23,7 +27,7 @@ on:
         description: How many recent posts to fetch for each handle
         default: "2"
       validate:
-        description: Also run the daily checks (async path, schema drift)
+        description: Also run every README block, as the Monday run does
         type: boolean
         default: false
 
@@ -40,7 +44,10 @@ jobs:
       # On the daily schedule there are no inputs, so fall back to one cheap post.
       HANDLES: ${{ inputs.handles || 'nasa' }}
       LIMIT: ${{ inputs.limit || '1' }}
-      VALIDATE: ${{ github.event_name == 'schedule' || inputs.validate }}
+      # CHECK: the async path and the field table, every scheduled run and on request.
+      # FULL: every README block, Mondays and on request.
+      CHECK: ${{ github.event_name == 'schedule' || inputs.validate }}
+      FULL: ${{ github.event.schedule == '0 6 * * 1' || inputs.validate }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
@@ -111,7 +118,7 @@ jobs:
 
       # The two daily checks. Discovery is already covered by the step above.
       - name: Does the async trigger, status, fetch path still work?
-        if: env.VALIDATE == 'true'
+        if: env.CHECK == 'true'
         run: |
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import time
@@ -135,7 +142,7 @@ jobs:
           PY
 
       - name: Run every README snippet and CLI command against the real API
-        if: env.VALIDATE == 'true'
+        if: env.FULL == 'true'
         run: |
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import os
@@ -198,7 +205,7 @@ jobs:
           PY
 
       - name: Regenerate the README field table from the live schema
-        if: always() && env.VALIDATE == 'true'
+        if: always() && env.CHECK == 'true'
         run: |
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json
