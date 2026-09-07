@@ -217,7 +217,7 @@ jobs:
               "",
               "Regenerated every day from the dataset schema, via",
               "`client.datasets.instagram_posts.get_metadata()`, so it cannot go stale. A",
-              f"post carries the fields that apply to it; the sample below has {len(sample)}",
+              f"post carries the fields that apply to it; the sample file has {len(sample)}",
               f"of these {len(fields)}.",
               "",
               *rows,

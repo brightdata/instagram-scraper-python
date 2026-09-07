@@ -206,8 +206,10 @@ def test_the_sdk_contract_the_readme_relies_on():
         assert inspect.signature(fn).parameters["include_errors"].default is True, fn
 
 
-def test_the_readme_shows_the_example_file_verbatim():
+def test_the_readme_excerpt_is_the_start_of_the_example_file():
+    """The README shows the first 20 lines of the real file, verbatim, and links it."""
     sample = (ROOT / "examples" / "sample_output.json").read_text(encoding="utf-8")
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
-    assert sample in readme, "README output block and examples/sample_output.json differ"
+    assert "\n".join(sample.splitlines()[:20]) in readme, "README excerpt drifted from the file"
+    assert "](examples/sample_output.json)" in readme
