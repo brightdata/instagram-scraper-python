@@ -30,6 +30,9 @@ on:
         description: Also run every README block, as the Monday run does
         type: boolean
         default: false
+      only:
+        description: Block numbers to run, comma separated, for a cheap check. Empty means all.
+        default: ""
 
 permissions:
   contents: write  # the daily check commits the regenerated field table
@@ -44,10 +47,8 @@ jobs:
       # On the daily schedule there are no inputs, so fall back to one cheap post.
       HANDLES: ${{ inputs.handles || 'nasa' }}
       LIMIT: ${{ inputs.limit || '1' }}
-      # CHECK: the async path and the field table, every scheduled run and on request.
-      # FULL: every README block, Mondays and on request.
+      # the async path and the field table run on every scheduled run and on request
       CHECK: ${{ github.event_name == 'schedule' || inputs.validate }}
-      FULL: ${{ github.event.schedule == '0 6 * * 1' || inputs.validate }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
@@ -141,69 +142,6 @@ jobs:
           print(f"\nAsync path ok: trigger, status, fetch returned {len(rows)} record(s).")
           PY
 
-      - name: Run every README snippet and CLI command against the real API
-        if: env.FULL == 'true'
-        run: |
-          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
-          import os
-          import pathlib
-          import re
-          import subprocess
-          import sys
-          import time
-
-          readme = pathlib.Path("README.md").read_text(encoding="utf-8")
-          # never execute anything inside the generated field table: its text comes from
-          # the API, and a fence in a description must not become a command
-          readme = re.sub(r"<!-- fields:start -->.*?<!-- fields:end -->", "", readme, flags=re.S)
-          SECRET = os.environ.get("BRIGHTDATA_API_TOKEN", "")
-          SKIP = ("pip install", "export ", "npm i", "npm install",
-                  "npx -p @brightdata/cli bdata login", "bdata login")
-
-          def command(lang, code):
-              lines = [l for l in code.splitlines() if l.strip() and not l.strip().startswith("#")]
-              if lang == "python":
-                  return code, lines[0]
-              lines = [l for l in lines if not l.startswith(SKIP)]
-              if not lines:
-                  return None, None
-              # the CLI cannot open a browser here; the secret goes in by flag, and
-              # only the shell ever sees its value
-              return "\n".join(l + ' -k "$BRIGHTDATA_API_TOKEN"' if "bdata pipelines" in l else l
-                                for l in lines), lines[0]
-
-          results, failed = [], 0
-          for lang, code in re.findall(r"```(python|bash)\n(.*?)```", readme, re.S):
-              cmd, title = command(lang, code)
-              if cmd is None:
-                  continue
-              argv = ["bash", "-e", "-c", cmd] if lang == "bash" else [sys.executable, "-c", cmd]
-              for attempt in (1, 2):
-                  started = time.time()
-                  try:  # no block may run past 8 minutes; the SDK gives up at 3, reels at 7
-                      run = subprocess.run(argv, capture_output=True, text=True, timeout=480)
-                  except subprocess.TimeoutExpired:
-                      run = subprocess.CompletedProcess(argv, 1, "", "block timeout: no result within 8 minutes")
-                  secs = round(time.time() - started)
-                  out, err = run.stdout.strip(), run.stderr.strip()
-                  if SECRET:
-                      out, err = out.replace(SECRET, "***"), err.replace(SECRET, "***")
-                  ok = run.returncode == 0 and bool(out if lang == "python" else out or err)
-                  if ok or "timeout" not in (out + err).lower():
-                      break
-                  time.sleep(30)  # the API timed out; one retry
-              failed += not ok
-              shown = (out.splitlines() or [""])[0] if ok else (err.splitlines() or out.splitlines() or ["no output"])[-1]
-              results.append((title[:60], ok, secs, shown[:90]))
-
-          print("\n| README block | result | seconds | first line of output |")
-          print("| --- | --- | --- | --- |")
-          for title, ok, secs, shown in results:
-              print(f"| `{title}` | {'ok' if ok else '**FAILED**'} | {secs} | `{shown}` |")
-          print(f"\n{len(results) - failed} of {len(results)} README blocks ran and produced output.")
-          sys.exit(1 if failed else 0)
-          PY
-
       - name: Regenerate the README field table from the live schema
         if: always() && env.CHECK == 'true'
         run: |
@@ -258,6 +196,7 @@ jobs:
           git config user.email "210667061+anil-bd@users.noreply.github.com"
           git add README.md
           git commit -m "Regenerate the field table from the live schema (automated daily check)"
+          git pull --rebase origin main
           git push
           echo "Committed the regenerated table."
 
@@ -268,3 +207,131 @@ jobs:
           name: instagram-json
           path: instagram.json
           if-no-files-found: warn
+
+  # Every code block in the README, each in its own job, all at once. Mondays,
+  # and on request. Wall clock is the slowest block, about five minutes,
+  # instead of the sum of all fourteen.
+  plan:
+    name: List the README blocks
+    if: github.event.schedule == '0 6 * * 1' || inputs.validate == true
+    runs-on: ubuntu-latest
+    outputs:
+      blocks: ${{ steps.list.outputs.blocks }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - id: list
+        env:
+          ONLY: ${{ inputs.only }}
+        run: |
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          import json
+          import pathlib
+          import re
+
+          readme = pathlib.Path("README.md").read_text(encoding="utf-8")
+          # never execute anything inside the generated field table: its text comes from
+          # the API, and a fence in a description must not become a command
+          readme = re.sub(r"<!-- fields:start -->.*?<!-- fields:end -->", "", readme, flags=re.S)
+          SKIP = ("pip install", "export ", "npm i", "npm install",
+                  "npx -p @brightdata/cli bdata login", "bdata login")
+          blocks, heading, seen = [], "README", {}
+          for m in re.finditer(r"^#{2,3} ([^\n]+)$|```(python|bash)\n(.*?)```", readme, re.M | re.S):
+              if m.group(1):
+                  heading = m.group(1).strip()  # a block is named after its section, not its first line
+                  continue
+              lang, code = m.group(2), m.group(3)
+              lines = [l for l in code.splitlines() if l.strip() and not l.strip().startswith("#")]
+              if lang == "bash":
+                  lines = [l for l in lines if not l.startswith(SKIP)]
+                  if not lines:
+                      continue
+                  # the CLI cannot open a browser here; the secret goes in by flag, and
+                  # only the shell ever sees its value
+                  code = "\n".join(l + ' -k "$BRIGHTDATA_API_TOKEN"' if "bdata pipelines" in l else l for l in lines)
+              seen[heading] = seen.get(heading, 0) + 1
+              title = heading if seen[heading] == 1 else f"{heading} ({seen[heading]})"
+              blocks.append({"lang": lang, "title": title[:50], "code": code})
+          wanted = {int(n) for n in os.environ.get("ONLY", "").split(",") if n.strip()}
+          out = [{"n": i + 1, "lang": b["lang"], "title": b["title"]} for i, b in enumerate(blocks) if not wanted or i + 1 in wanted]
+          print("blocks=" + json.dumps(out))
+          PY
+
+  block:
+    name: "${{ matrix.n }}. ${{ matrix.title }}"
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10  # the SDK gives up at 3 minutes, reels at 7; past this is stuck
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJson(needs.plan.outputs.blocks) }}
+    env:
+      BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install the package and, for CLI blocks, the Bright Data CLI
+        run: |
+          pip install -e .
+          if [ "${{ matrix.lang }}" = "bash" ]; then npm i -g @brightdata/cli@0.3.4; fi
+      - name: Run block ${{ matrix.n }} exactly as the README shows it
+        env:
+          N: ${{ matrix.n }}
+        run: |
+          set -o pipefail  # without this, tee's exit code hides a failing block
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import os
+          import subprocess
+          import sys
+          import time
+          import json
+          import pathlib
+          import re
+
+          readme = pathlib.Path("README.md").read_text(encoding="utf-8")
+          # never execute anything inside the generated field table: its text comes from
+          # the API, and a fence in a description must not become a command
+          readme = re.sub(r"<!-- fields:start -->.*?<!-- fields:end -->", "", readme, flags=re.S)
+          SKIP = ("pip install", "export ", "npm i", "npm install",
+                  "npx -p @brightdata/cli bdata login", "bdata login")
+          blocks, heading, seen = [], "README", {}
+          for m in re.finditer(r"^#{2,3} ([^\n]+)$|```(python|bash)\n(.*?)```", readme, re.M | re.S):
+              if m.group(1):
+                  heading = m.group(1).strip()  # a block is named after its section, not its first line
+                  continue
+              lang, code = m.group(2), m.group(3)
+              lines = [l for l in code.splitlines() if l.strip() and not l.strip().startswith("#")]
+              if lang == "bash":
+                  lines = [l for l in lines if not l.startswith(SKIP)]
+                  if not lines:
+                      continue
+                  # the CLI cannot open a browser here; the secret goes in by flag, and
+                  # only the shell ever sees its value
+                  code = "\n".join(l + ' -k "$BRIGHTDATA_API_TOKEN"' if "bdata pipelines" in l else l for l in lines)
+              seen[heading] = seen.get(heading, 0) + 1
+              title = heading if seen[heading] == 1 else f"{heading} ({seen[heading]})"
+              blocks.append({"lang": lang, "title": title[:50], "code": code})
+          b = blocks[int(os.environ["N"]) - 1]
+          argv = ["bash", "-e", "-c", b["code"]] if b["lang"] == "bash" else [sys.executable, "-c", b["code"]]
+          secret = os.environ.get("BRIGHTDATA_API_TOKEN", "")
+          for attempt in (1, 2):
+              started = time.time()
+              try:
+                  run = subprocess.run(argv, capture_output=True, text=True, timeout=480)
+              except subprocess.TimeoutExpired:
+                  run = subprocess.CompletedProcess(argv, 1, "", "block timeout: no result within 8 minutes")
+              secs = round(time.time() - started)
+              out, err = run.stdout.strip(), run.stderr.strip()
+              if secret:  # summaries are not secret-masked the way logs are
+                  out, err = out.replace(secret, "***"), err.replace(secret, "***")
+              ok = run.returncode == 0 and bool(out if b["lang"] == "python" else out or err)
+              if ok or ((out or err) and "timeout" not in (out + err).lower()):
+                  break
+              time.sleep(30)  # the API timed out or answered with nothing at all; one retry
+          shown = (out.splitlines() or [""])[0] if ok else (err.splitlines() or out.splitlines() or ["no output"])[-1]
+          print(f"\n`{b['title']}`: {'ok' if ok else 'FAILED'} in {secs}s\n\n    {shown[:120]}")
+          sys.exit(0 if ok else 1)
+          PY
