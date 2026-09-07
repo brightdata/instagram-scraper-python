@@ -7,9 +7,9 @@
 #
 # Not on push: that would spend money per commit, and a slow day at the API
 # would show up as a failed build on your repository.
-name: Real API run (daily check, or start it yourself; uses your token)
+name: Daily check, does the README still work? (or start it yourself; uses your token)
 
-run-name: "${{ github.event_name == 'schedule' && 'Daily check: is anything broken?' || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
+run-name: "${{ github.event_name == 'schedule' && 'Daily check: does the README still work?' || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
 
 on:
   schedule:
@@ -34,7 +34,7 @@ jobs:
   scrape:
     name: Fetch the posts and attach them to this run
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 120  # the README runner executes 14 blocks in sequence
     env:
       BRIGHTDATA_API_TOKEN: ${{ secrets.BRIGHTDATA_API_TOKEN }}
       # On the daily schedule there are no inputs, so fall back to one cheap post.
@@ -46,8 +46,10 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - name: Install the package
-        run: pip install -e .
+      - name: Install the package and the Bright Data CLI
+        run: |
+          pip install -e .
+          npm i -g @brightdata/cli
 
       - name: Fetch the posts from Instagram
         run: |
@@ -132,8 +134,61 @@ jobs:
           print(f"\nAsync path ok: trigger, status, fetch returned {len(rows)} record(s).")
           PY
 
-      - name: Regenerate the README field table from the live schema
+      - name: Run every README snippet and CLI command against the real API
         if: env.VALIDATE == 'true'
+        run: |
+          python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import pathlib
+          import re
+          import subprocess
+          import sys
+          import time
+
+          readme = pathlib.Path("README.md").read_text(encoding="utf-8")
+          SKIP = ("pip install", "export ", "npm i", "npm install",
+                  "npx -p @brightdata/cli bdata login", "bdata login")
+
+          def command(lang, code):
+              lines = [l for l in code.splitlines() if l.strip() and not l.strip().startswith("#")]
+              if lang == "python":
+                  return code, lines[0]
+              lines = [l for l in lines if not l.startswith(SKIP)]
+              if not lines:
+                  return None, None
+              # the CLI cannot open a browser here; the secret goes in by flag, and
+              # only the shell ever sees its value
+              return "\n".join(l + ' -k "$BRIGHTDATA_API_TOKEN"' if "bdata pipelines" in l else l
+                                for l in lines), lines[0]
+
+          results, failed = [], 0
+          for lang, code in re.findall(r"```(python|bash)\n(.*?)```", readme, re.S):
+              cmd, title = command(lang, code)
+              if cmd is None:
+                  continue
+              argv = ["bash", "-e", "-c", cmd] if lang == "bash" else [sys.executable, "-c", cmd]
+              for attempt in (1, 2):
+                  started = time.time()
+                  run = subprocess.run(argv, capture_output=True, text=True, timeout=1500)
+                  secs = round(time.time() - started)
+                  out, err = run.stdout.strip(), run.stderr.strip()
+                  ok = run.returncode == 0 and bool(out if lang == "python" else out or err)
+                  if ok or "timeout" not in (out + err).lower():
+                      break
+                  time.sleep(30)  # the API timed out; one retry
+              failed += not ok
+              shown = (out.splitlines() or [""])[0] if ok else (err.splitlines() or out.splitlines() or ["no output"])[-1]
+              results.append((title[:60], ok, secs, shown[:90]))
+
+          print("\n| README block | result | seconds | first line of output |")
+          print("| --- | --- | --- | --- |")
+          for title, ok, secs, shown in results:
+              print(f"| `{title}` | {'ok' if ok else '**FAILED**'} | {secs} | `{shown}` |")
+          print(f"\n{len(results) - failed} of {len(results)} README blocks ran and produced output.")
+          sys.exit(1 if failed else 0)
+          PY
+
+      - name: Regenerate the README field table from the live schema
+        if: always() && env.VALIDATE == 'true'
         run: |
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json

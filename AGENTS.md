@@ -1,0 +1,43 @@
+# For coding agents working in this repository
+
+Read this before changing anything. Every line below was verified against the
+live API or the installed SDK on 2026-09-07, and most of it contradicts the
+SDK's own docstrings.
+
+## Auth
+
+- The SDK reads `BRIGHTDATA_API_TOKEN` from the environment or a `.env` file.
+  Setting it is the one step a human must do; never paste a key into code.
+- Always construct the client as `SyncBrightDataClient(auto_create_zones=False)`.
+  Left on, the SDK tries to create Web Unlocker and SERP zones on startup. This
+  repository never uses a zone, and zone creation fails on accounts without a
+  payment method.
+
+## How the API behaves
+
+- Every SDK call is an asynchronous job: trigger, poll, return. Expect one to
+  three minutes per account. There is no synchronous path in the SDK.
+- Many URLs in one call is one job. Prefer that over a loop. For large runs use
+  `posts_trigger`, `posts_status`, `posts_fetch` and keep the snapshot id.
+- One credit per record. Comments cost one per comment; `reels_all` costs one
+  per reel the account has ever posted. 5,000 credits are free each month.
+- Reels discovery needs `timeout=420`; the 180-second default expires.
+- `post_type="Reel"` returns nothing, silently. Do not rely on it.
+- An empty date window comes back as an error row whose message contains
+  "There are no public posts in the profile for the specified period". That is
+  a success with zero records. Match the message, not `error_code`; a dead
+  account uses the same code.
+- The schema changes without notice. Never hardcode a field list.
+
+## Working here
+
+- `pytest` runs offline and needs no token. `ruff check .` must pass.
+- CI installs from the README's own commands on an empty machine, and a daily
+  workflow executes every fenced block in the README against the real API.
+  A snippet must be complete and paste-able on its own, and its shown output
+  must be real.
+- The field table in the README sits between `<!-- fields:start -->` and
+  `<!-- fields:end -->` and is regenerated daily. Do not edit it by hand.
+- Keep it small: about 13 files and 450 lines of Python. Do not add retries,
+  deduplication, scheduling, databases, async examples or concurrency.
+- No em dashes anywhere. No Co-Authored-By trailers on commits.

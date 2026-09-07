@@ -1,5 +1,8 @@
 # instagram-scraper-python
 
+[![Daily check: does the README still work?](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml/badge.svg)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml)
+[![Tests](https://github.com/brightdata/instagram-scraper-python/actions/workflows/ci.yml/badge.svg)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/ci.yml)
+
 Instagram profiles, posts, reels and comments as JSON, in Python. No Instagram
 login, no browser. Built on the
 [Bright Data Scraper API](https://brightdata.com/products/web-scraper).
@@ -96,8 +99,9 @@ An account with nothing recent is a success with no posts. The reason lands in
 
 ## The rest of the API
 
-The CLI covers one endpoint. The SDK has eight. Every call below was run today
-and prints what it printed.
+The CLI covers one endpoint. The SDK has eight. Every snippet below is complete:
+paste it as is. Every one of them runs in Actions each day, and the badge at
+the top is the latest result.
 
 | you have | want | call |
 | --- | --- | --- |
@@ -118,32 +122,24 @@ and a one-minute limit, is raw HTTP only.
 Error rows, like the empty-window one above, appear because the SDK asks for
 them with `include_errors=true`. The API default is off.
 
-All snippets share this setup:
-
-```python
-import time
-
-from brightdata import SyncBrightDataClient
-from ig_scraper.scrape import rows
-
-NASA = "https://www.instagram.com/nasa/"
-NATGEO = "https://www.instagram.com/natgeo/"
-POST = "https://www.instagram.com/p/Dc1W1uFj-CW/"
-
-client = SyncBrightDataClient(auto_create_zones=False).__enter__()
-```
-
-`auto_create_zones=False` matters. Left on, the SDK tries to create Web
-Unlocker and SERP zones on startup, which this scraper never uses and which
-fail on accounts without a payment method.
+Pass `auto_create_zones=False` every time, as below. Left on, the SDK tries to
+create Web Unlocker and SERP zones on startup, which this scraper never uses
+and which fail on accounts without a payment method.
 
 ### Two accounts, one job
 
 A list of URLs is one job, not one per account.
 
 ```python
-for post in rows(client.search.instagram.posts([NASA, NATGEO], num_of_posts=1)):
-    print(post["user_posted"], post["url"])
+from brightdata import SyncBrightDataClient
+from ig_scraper import rows
+
+with SyncBrightDataClient(auto_create_zones=False) as client:
+    result = client.search.instagram.posts(
+        ["https://www.instagram.com/nasa/", "https://www.instagram.com/natgeo/"], num_of_posts=1
+    )
+    for post in rows(result):
+        print(post["user_posted"], post["url"])
 ```
 
 ```
@@ -158,13 +154,18 @@ Trigger, keep the snapshot id, fetch when ready. Snapshots stay downloadable
 for 30 days.
 
 ```python
-job = client.scrape.instagram.posts_trigger(POST)
-print("snapshot:", job.snapshot_id)
-while (status := client.scrape.instagram.posts_status(job.snapshot_id)) not in ("ready", "failed"):
-    time.sleep(5)
-print("status:", status)
-record = client.scrape.instagram.posts_fetch(job.snapshot_id)[0]
-print("fetched:", record["url"], "likes:", record["likes"])
+import time
+
+from brightdata import SyncBrightDataClient
+
+with SyncBrightDataClient(auto_create_zones=False) as client:
+    job = client.scrape.instagram.posts_trigger("https://www.instagram.com/p/Dc1W1uFj-CW/")
+    print("snapshot:", job.snapshot_id)
+    while (status := client.scrape.instagram.posts_status(job.snapshot_id)) not in ("ready", "failed"):
+        time.sleep(5)
+    print("status:", status)
+    record = client.scrape.instagram.posts_fetch(job.snapshot_id)[0]
+    print("fetched:", record["url"], "likes:", record["likes"])
 ```
 
 ```
@@ -176,14 +177,18 @@ fetched: https://www.instagram.com/p/Dc1W1uFj-CW/ likes: 184
 ### A date window
 
 ```python
-result = client.search.instagram.posts(
-    NASA,
-    num_of_posts=3,
-    start_date="08-01-2026",   # MM-DD-YYYY
-    end_date="09-07-2026",
-)
-for post in rows(result):
-    print(post["date_posted"], post["content_type"], post["url"])
+from brightdata import SyncBrightDataClient
+from ig_scraper import rows
+
+with SyncBrightDataClient(auto_create_zones=False) as client:
+    result = client.search.instagram.posts(
+        "https://www.instagram.com/nasa/",
+        num_of_posts=3,
+        start_date="08-01-2026",   # MM-DD-YYYY
+        end_date="09-07-2026",
+    )
+    for post in rows(result):
+        print(post["date_posted"], post["content_type"], post["url"])
 ```
 
 ```
@@ -199,12 +204,16 @@ rows in testing even with a reel inside the window, so do not rely on it.
 ### A profile, by username, no URL
 
 ```python
-profile = rows(client.search.instagram.profiles("nasa"))[0]
-print(profile["account"], "followers:", profile["followers"], "posts:", profile["posts_count"], "fields:", len(profile))
+from brightdata import SyncBrightDataClient
+from ig_scraper import rows
+
+with SyncBrightDataClient(auto_create_zones=False) as client:
+    profile = rows(client.search.instagram.profiles("nasa"))[0]
+    print(profile["account"], "followers:", profile["followers"], "posts:", profile["posts_count"])
 ```
 
 ```
-nasa followers: 104395968 posts: 4913 fields: 29
+nasa followers: 104395968 posts: 4913
 ```
 
 ### Comments on a post
@@ -212,8 +221,12 @@ nasa followers: 104395968 posts: 4913 fields: 29
 One credit per comment, so check `num_comments` on the post first.
 
 ```python
-comments = rows(client.scrape.instagram.comments(POST))
-print(len(comments), "comments; first:", repr(comments[0]["comment"][:60]))
+from brightdata import SyncBrightDataClient
+from ig_scraper import rows
+
+with SyncBrightDataClient(auto_create_zones=False) as client:
+    comments = rows(client.scrape.instagram.comments("https://www.instagram.com/p/Dc1W1uFj-CW/"))
+    print(len(comments), "comments; first:", repr(comments[0]["comment"][:60]))
 ```
 
 ```
@@ -225,8 +238,13 @@ print(len(comments), "comments; first:", repr(comments[0]["comment"][:60]))
 Reels discovery is slower. The default 180-second timeout expired; 420 did not.
 
 ```python
-for reel in rows(client.search.instagram.reels(NASA, num_of_posts=2, timeout=420)):
-    print(reel["date_posted"], reel["url"])
+from brightdata import SyncBrightDataClient
+from ig_scraper import rows
+
+with SyncBrightDataClient(auto_create_zones=False) as client:
+    reels = client.search.instagram.reels("https://www.instagram.com/nasa/", num_of_posts=2, timeout=420)
+    for reel in rows(reels):
+        print(reel["date_posted"], reel["url"])
 ```
 
 ```
