@@ -23,6 +23,12 @@ Get a token from the
 [Bright Data control panel](https://brightdata.com/cp/setting/users). A `.env`
 file in the working directory works instead of the export.
 
+Or skip the token. Run `npx -p @brightdata/cli bdata login` once: it opens a
+browser, and the SDK finds the stored credentials on its own. Do that step
+yourself before handing a terminal to a coding agent, since agents cannot click
+through it. The same CLI scrapes Instagram directly; see
+[Coding agents](#coding-agents).
+
 New accounts get
 [5,000 free credits a month](https://docs.brightdata.com/general/account/billing-and-pricing/free-tier).
 
@@ -521,6 +527,49 @@ npx -p @brightdata/cli bdata pipelines instagram_posts "https://www.instagram.co
 
 Agent skills for Claude Code, Codex and Cursor:
 [brightdata/skills](https://github.com/brightdata/skills).
+
+<details>
+<summary>Every Instagram command the CLI has, each run today</summary>
+
+Four types: `instagram_profiles`, `instagram_posts`, `instagram_reels`,
+`instagram_comments`. Each takes URLs, prints JSON, and costs one credit per
+record. Prefix each command with `npx -p @brightdata/cli`, or install once with
+`npm i -g @brightdata/cli`.
+
+```bash
+bdata pipelines instagram_profiles "https://www.instagram.com/nasa/" --pretty
+```
+
+1 record, 25 fields, 50 seconds. `"account": "nasa"`, `"followers": 104396028`.
+
+```bash
+bdata pipelines instagram_posts "https://www.instagram.com/p/Dc1W1uFj-CW/" --format csv -o posts.csv
+```
+
+```
+Triggered collection with snapshot ID:sd_mtrcu6qpyebqgtcjg
+Output written to posts.csv
+```
+
+37 seconds. The CSV header carries the same field names as the table below.
+
+```bash
+bdata pipelines instagram_reels "https://www.instagram.com/reel/DcMXl1IPNtB/" --pretty
+```
+
+1 record, 25 fields, 23 seconds.
+
+```bash
+bdata pipelines instagram_comments "https://www.instagram.com/p/Dc1W1uFj-CW/" --pretty
+```
+
+5 records, 11 fields, 9 seconds. One credit per comment, so check the post's
+`num_comments` first.
+
+`bdata pipelines list` prints every type. `bdata pipelines --help` shows
+`--format json|csv|ndjson|jsonl`, `-o FILE` and `--timeout`.
+
+</details>
 
 ## Support
 
