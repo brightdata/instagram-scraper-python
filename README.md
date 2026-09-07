@@ -132,6 +132,7 @@ url  date_posted  description  hashtags  likes  num_comments  user_posted
 
 The code hardcodes no field list. Whatever the API returns lands in the file.
 
+<!-- fields:start -->
 <details>
 <summary>All 43 fields, with type and description</summary>
 
@@ -186,6 +187,7 @@ that apply to it, so the sample below has 34 of these 43.
 | `thumbnail_array` | array | Deprecated: array of thumbnail URLs for the post media |
 
 </details>
+<!-- fields:end -->
 
 <details>
 <summary>A whole output file, from <code>ig-scraper nasa --limit 1</code></summary>

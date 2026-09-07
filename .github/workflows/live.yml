@@ -28,7 +28,7 @@ on:
         default: false
 
 permissions:
-  contents: read
+  contents: write  # the daily check commits the regenerated field table
 
 jobs:
   scrape:
@@ -132,28 +132,61 @@ jobs:
           print(f"\nAsync path ok: trigger, status, fetch returned {len(rows)} record(s).")
           PY
 
-      - name: Has the field schema drifted from the README table?
+      - name: Regenerate the README field table from the live schema
         if: env.VALIDATE == 'true'
         run: |
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json
           import pathlib
           import re
 
           from brightdata import SyncBrightDataClient
 
-          readme = pathlib.Path("README.md").read_text(encoding="utf-8")
-          documented = set(re.findall(r"^\| `([a-z_]+)` \| \w+ \|", readme, re.M))
+          readme = pathlib.Path("README.md")
+          text = readme.read_text(encoding="utf-8")
+          start, end = "<!-- fields:start -->", "<!-- fields:end -->"
+          assert start in text and end in text, "README field-table markers are missing"
+
           with SyncBrightDataClient(auto_create_zones=False) as c:
-              live = set(c.datasets.instagram_posts.get_metadata().fields)
-          added, removed = sorted(live - documented), sorted(documented - live)
-          print(f"\nSchema: README lists {len(documented)} fields, the API reports {len(live)}.")
-          if added or removed:
-              print(f"::warning::Field table drifted. New: {added}. Gone: {removed}.")
-              print(f"\nNew in the API, missing from the README: {added}")
-              print(f"In the README, gone from the API: {removed}")
-          else:
-              print("Schema ok: the README table matches the live dataset.")
+              fields = c.datasets.instagram_posts.get_metadata().fields
+          sample = json.load(open("examples/sample_output.json"))["handles"][0]["posts"][0]
+
+          rows = ["| field | type | description |", "| --- | --- | --- |"]
+          for name, spec in fields.items():
+              desc = (spec.description or "").replace(" — ", ": ").replace("—", ":")
+              rows.append(f"| `{name}` | {spec.type} | {desc} |")
+          block = "\n".join([
+              start,
+              "<details>",
+              f"<summary>All {len(fields)} fields, with type and description</summary>",
+              "",
+              "Regenerated every day from the dataset schema, via",
+              "`client.datasets.instagram_posts.get_metadata()`, so it cannot go stale. A",
+              f"post carries the fields that apply to it; the sample below has {len(sample)}",
+              f"of these {len(fields)}.",
+              "",
+              *rows,
+              "",
+              "</details>",
+              end,
+          ])
+          new = re.sub(re.escape(start) + r".*?" + re.escape(end), lambda _: block, text, flags=re.S)
+          readme.write_text(new, encoding="utf-8")
+          state = "updated" if new != text else "already current"
+          print(f"\nSchema: {len(fields)} fields. README table {state}.")
           PY
+          if git diff --quiet README.md; then
+            echo "Nothing to commit."
+            exit 0
+          fi
+          # Never commit a README the tests would reject.
+          pip install -q -e ".[dev]" && pytest -q
+          git config user.name "anil-bd"
+          git config user.email "210667061+anil-bd@users.noreply.github.com"
+          git add README.md
+          git commit -m "Regenerate the field table from the live schema (automated daily check)"
+          git push
+          echo "Committed the regenerated table."
 
       - name: Attach instagram.json so you can download it
         uses: actions/upload-artifact@v7
