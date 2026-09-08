@@ -56,9 +56,10 @@ with SyncBrightDataClient(auto_create_zones=False) as client:
 Expect one to three minutes: the API runs a job and the SDK waits for it. One
 credit per post.
 
-Pass `auto_create_zones=False` every time. Left on, the SDK tries to create Web
-Unlocker and SERP zones on startup, which Instagram scraping never uses and
-which fail on accounts without a payment method.
+Pass `auto_create_zones=False` every time. Left on, the SDK creates zones on
+startup for Web Unlocker and SERP, two other Bright Data products this scraper
+never touches, and zone creation fails on accounts without a payment method
+([sdk-python#57](https://github.com/brightdata/sdk-python/issues/57)).
 
 ## Or run it as a command
 
@@ -95,7 +96,8 @@ you can see it is working and how long it has been going:
 
 `python -m ig_scraper` works too.
 
-Import it instead of running it:
+Import it instead of running it, for `ok`, `note` and `error` per account
+instead of raw rows:
 
 ```python
 from ig_scraper import scrape
@@ -290,7 +292,8 @@ The fields most people want:
 url  date_posted  description  hashtags  likes  num_comments  user_posted
 ```
 
-The code hardcodes no field list. Whatever the API returns lands in the file.
+The code hardcodes no field list. Whatever the API returns lands in
+`result.data`, and in the command's file.
 A collaborative post carries the co-author's handle in `user_posted`, so a post
 fetched from nasa can say `nasajohnson`; `coauthor_producers` lists everyone.
 

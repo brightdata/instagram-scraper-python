@@ -59,6 +59,20 @@ jobs:
           pip install -e .
           npm i -g @brightdata/cli@0.3.4  # pinned: this job holds the API secret
 
+      - name: Do the README's links still resolve?
+        run: |
+          public=$(curl -s -o /dev/null -w '%{http_code}' https://github.com/brightdata/instagram-scraper-python)
+          failed=0
+          for url in $(grep -ohE 'https?://[^ )>"`]+' README.md AGENTS.md | sed 's/[.,]$//' | sort -u); do
+            case "$url" in
+              *instagram.com/*) continue ;;  # rate-limits runners; the weekly README run fetches these posts anyway
+              *zendesk.com/*) continue ;;    # answers 403 to anything that is not a browser
+              *github.com/brightdata/instagram-scraper-python*) [ "$public" = "200" ] || continue ;;  # private for now
+            esac
+            code=$(curl -s -o /dev/null -L --retry 3 --max-time 30 -A "Mozilla/5.0" -w '%{http_code}' "$url" || echo 000)
+            if [ "$code" = "200" ]; then echo "200 $url"; else echo "::error::$code $url"; failed=1; fi
+          done
+          [ "$failed" = 0 ] || exit 1
       - name: Fetch the posts from Instagram
         run: |
           test -n "$BRIGHTDATA_API_TOKEN" || {
