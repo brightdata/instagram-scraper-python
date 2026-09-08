@@ -49,22 +49,42 @@ jobs:
         run: |
           set -o pipefail
           python - <<'PY' > "$RUNNER_TEMP/quickstart.sh"
+          import os
           import pathlib
           import re
           import sys
 
           readme = pathlib.Path("README.md").read_text(encoding="utf-8")
-          section = readme.split("## Quickstart", 1)[1]
-          block = re.search(r"```bash\n(.*?)```", section, re.S).group(1)
 
-          for required in ("pip install", "ig-scraper"):
-              if required not in block:
-                  sys.exit(f"the quickstart no longer contains {required!r}")
+          def section(title):
+              return readme.split(f"## {title}", 1)[1].split("\n## ", 1)[0]
 
-          steps = []
-          for line in block.splitlines():
-              if line.startswith("export BRIGHTDATA_API_TOKEN"):
-                  continue  # this job has no token on purpose
+          def block(text, lang):
+              return re.search(r"```" + lang + r"\n(.*?)```", text, re.S).group(1)
+
+          quick = section("Quickstart")
+          install, snippet = block(quick, "bash"), block(quick, "python")
+          command = block(section("Or run it as a command"), "bash")
+          for required, where in (("pip install brightdata-sdk", install),
+                                  ("SyncBrightDataClient", snippet),
+                                  ("ig-scraper", command)):
+              if required not in where:
+                  sys.exit(f"the README no longer contains {required!r} where the cold start expects it")
+
+          steps = ["# --- Quickstart: the SDK path ---"]
+          steps += [l for l in install.splitlines() if l.startswith("pip install")]
+          pathlib.Path(os.environ["RUNNER_TEMP"], "quickstart_snippet.py").write_text(snippet, encoding="utf-8")
+          steps += [
+              "set +e",
+              "python quickstart_snippet.py > out.txt 2> err.txt",
+              "code=$?",
+              "set -e",
+              'test "$code" != "0" || { echo "the snippet ran without a token?"; cat out.txt; exit 1; }',
+              'grep -qi token err.txt || { echo "no token message"; cat err.txt; exit 1; }',
+              'echo "Quickstart: installs, and stops at the token, as documented."',
+              "# --- Or run it as a command: the CLI path ---",
+          ]
+          for line in command.splitlines():
               if line.startswith("ig-scraper"):
                   continue  # run below, so the exit code can be checked
               if line.startswith("pip install"):
@@ -86,7 +106,6 @@ jobs:
                       "fi",
                   ])
               steps.append(line)
-
           steps += [
               "set +e",
               "ig-scraper nasa --limit 1 > out.txt 2> err.txt",
@@ -94,7 +113,7 @@ jobs:
               "set -e",
               'test "$code" = "2" || { echo "expected exit 2, got $code"; cat err.txt; exit 1; }',
               'grep -qi token err.txt || { echo "no token message"; cat err.txt; exit 1; }',
-              'echo "Success: a new user can download, install and run this."',
+              'echo "Success: a new user can follow both README paths from scratch."',
           ]
           print("\n".join(steps))
           PY
