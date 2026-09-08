@@ -41,4 +41,3 @@ SDK's own docstrings.
   `<!-- fields:end -->` and is regenerated daily. Do not edit it by hand.
 - Keep it small: about 13 files and 450 lines of Python. Do not add retries,
   deduplication, scheduling, databases, async examples or concurrency.
-- No em dashes anywhere. No Co-Authored-By trailers on commits.
