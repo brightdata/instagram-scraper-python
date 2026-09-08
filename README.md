@@ -33,7 +33,7 @@ you and for any coding agent working in that terminal. Agents cannot click
 through the login, so do it yourself first. The same CLI scrapes Instagram
 directly; see [Coding agents](#coding-agents).
 
-New accounts get
+No account yet? [Create one](https://brightdata.com/cp/start); new accounts get
 [5,000 free credits a month](https://docs.brightdata.com/general/account/billing-and-pricing/free-tier).
 
 ```python
@@ -97,23 +97,8 @@ you can see it is working and how long it has been going:
 `python -m ig_scraper` works too.
 
 Import it instead of running it, for `ok`, `note` and `error` per account
-instead of raw rows:
-
-```python
-from ig_scraper import scrape
-
-for outcome in scrape(["nasa"], limit=2):
-    for post in outcome.posts:
-        print(post["likes"], post["num_comments"], post["url"])
-```
-
-```
-146397 499 https://www.instagram.com/p/DcCUKZoAS8h/
-63408 631 https://www.instagram.com/reel/DcCH2ZygIiP/
-```
-
-`scrape` never raises for one bad account. Each `Outcome` carries `handle`,
-`posts`, `error` and `note`. Check `ok` before reading `posts`:
+instead of raw rows. `scrape` never raises for one bad account; check `ok`
+before reading `posts`:
 
 ```python
 from ig_scraper import scrape
@@ -135,7 +120,7 @@ An account with nothing recent is a success with no posts. The reason lands in
 
 ## The rest of the API
 
-The CLI covers one endpoint. The SDK has eight. Every snippet below is complete
+The command covers one endpoint. The SDK has eight. Every snippet below is complete
 and needs only `brightdata-sdk`: paste it as is. Every one of them runs in Actions each Monday, a smaller check
 runs every other day, and the badge at the top is the latest result.
 
@@ -398,6 +383,14 @@ The whole file, one post with every field, is
 | `failed  @name: timeout` | Exit 1. A request gives up after 180 seconds. Run it again. |
 
 Any failure exits 1, so a run is safe to gate a script on.
+
+From the SDK, the same conditions look like this:
+
+| you see | what it means |
+| --- | --- |
+| `AuthenticationError: Unauthorized (401)` | The token is set but wrong. |
+| `result.success` is `False`, `result.status` is `"timeout"` | The SDK gave up waiting, 180 seconds by default. Pass `timeout=420`, or run it again. |
+| a row in `result.data` with an `error` key | The API's answer for one input: an empty window, or no such account. The other rows are fine. |
 
 ## Coding agents
 

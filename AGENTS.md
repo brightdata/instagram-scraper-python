@@ -1,7 +1,7 @@
 # For coding agents working in this repository
 
 Read this before changing anything. Every line below was verified against the
-live API or the installed SDK on 2026-09-07, and most of it contradicts the
+live API or the installed SDK on 2026-09-08, and most of it contradicts the
 SDK's own docstrings.
 
 ## Auth
