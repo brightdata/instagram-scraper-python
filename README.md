@@ -229,8 +229,9 @@ with SyncBrightDataClient(auto_create_zones=False) as client:
 2026-08-19T14:11:47.000Z Image https://www.instagram.com/p/DcOX3hWFiey/
 ```
 
-`post_type="Post"` filters reels out, verified. `post_type="Reel"` returned no
-rows in testing even with a reel inside the window, so do not rely on it.
+`post_type="Post"` keeps posts only and `post_type="Reels"` keeps reels only,
+both verified. The SDK's docstring says `"Reel"`; that spelling returns an
+error row and no reels ([sdk-python#59](https://github.com/brightdata/sdk-python/issues/59)).
 `posts_to_not_include` takes a list of post IDs.
 
 ### A profile, by username, no URL

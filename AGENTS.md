@@ -25,7 +25,8 @@ SDK's own docstrings.
 - One credit per record. Comments cost one per comment; `reels_all` costs one
   per reel the account has ever posted. 5,000 credits are free each month.
 - Reels discovery needs `timeout=420`; the 180-second default expires.
-- `post_type="Reel"` returns nothing, silently. Do not rely on it.
+- `post_type` takes `"Post"` or `"Reels"`. The SDK docstring's `"Reel"` returns an
+  error row and no reels.
 - An empty date window comes back as an error row whose message contains
   "There are no public posts in the profile for the specified period". That is
   a success with zero records. Match the message, not `error_code`; a dead
