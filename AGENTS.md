@@ -9,7 +9,8 @@ SDK's own docstrings.
 - The SDK reads `BRIGHTDATA_API_TOKEN` from the environment, from a `.env` file
   found by searching upward from its own install folder (so the project root,
   when the virtualenv is inside the project), or from the Bright Data CLI login.
-  Setting it is the one step a human must do; never paste a key into code.
+  Setting it, or running `bdata login` once, is the one step a human must do;
+  never paste a key into code.
 - Always construct the client as `SyncBrightDataClient(auto_create_zones=False)`.
   Left on, the SDK tries to create Web Unlocker and SERP zones on startup. This
   repository never uses a zone, and zone creation fails on accounts without a

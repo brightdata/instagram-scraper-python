@@ -10,6 +10,13 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
 from .scrape import client_context, scrape_handle, write
 
+#: The SDK's own advice lists a Python parameter. A command has no such thing.
+NO_TOKEN = (
+    "API token required but not found.\n"
+    "  export BRIGHTDATA_API_TOKEN=YOUR_API_KEY   token: https://brightdata.com/cp/setting/users\n"
+    "  or run once: npx -p @brightdata/cli bdata login"
+)
+
 #: A spinner and a running clock, so a minute of waiting looks alive.
 WAITING = (SpinnerColumn(), TextColumn("{task.description}"), TimeElapsedColumn())
 
@@ -29,12 +36,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("handles", nargs="+", help="handles, with or without the @")
     parser.add_argument("--limit", type=positive, default=5, help="posts per handle, default 5")
-    parser.add_argument("--out", default="instagram.json", help="output file")
+    parser.add_argument("--out", default="instagram.json", help="output file, default %(default)s")
     args = parser.parse_args(argv)
 
     print(
         f"Fetching up to {args.limit} recent posts per account, for: {', '.join(args.handles)}\n"
-        "Usually one to three minutes each. One credit per post, 5,000 free per month."
+        "Usually one to three minutes each. One credit per post, 5,000 free per month.",
+        flush=True,  # piped, an unflushed header would print after the error below
     )
 
     outcomes = []
@@ -50,9 +58,8 @@ def main(argv: list[str] | None = None) -> int:
                 bar.console.print(outcome.line(), markup=False, highlight=False)
                 outcomes.append(outcome)
     except BrightDataError as exc:
-        # Almost always a missing token. The SDK's advice reads as a crash if it
-        # arrives under a traceback.
-        print(exc, file=sys.stderr)
+        # Almost always a missing token, which reads as a crash under a traceback.
+        print(NO_TOKEN if "token required" in str(exc) else exc, file=sys.stderr)
         return 2
 
     path = write(outcomes, args.out)

@@ -28,11 +28,10 @@ file in the project root works too, as long as the virtualenv is inside the
 project.
 
 Or skip the token. Run `npx -p @brightdata/cli bdata login` once: it opens a
-browser, and the SDK finds the stored credentials on its own. Do that step
-yourself before handing a terminal to a coding agent, since agents cannot click
-through it. For a coding agent, set `BRIGHTDATA_API_TOKEN` in its environment;
-that is the only step it cannot do itself. The same CLI scrapes Instagram directly; see
-[Coding agents](#coding-agents).
+browser, and from then on the SDK finds the stored credentials on its own, for
+you and for any coding agent working in that terminal. Agents cannot click
+through the login, so do it yourself first. The same CLI scrapes Instagram
+directly; see [Coding agents](#coding-agents).
 
 New accounts get
 [5,000 free credits a month](https://docs.brightdata.com/general/account/billing-and-pricing/free-tier).
@@ -151,8 +150,9 @@ runs every other day, and the badge at the top is the latest result.
 
 Every one of these is an asynchronous job. The SDK triggers it, polls, and
 returns when it is ready. That is why a call takes one to three minutes, and
-why there is no faster path in Python. The API's synchronous endpoint, 20 URLs
-and a one-minute limit, is raw HTTP only.
+why there is no faster path in Python. The API's
+[synchronous endpoint](https://docs.brightdata.com/api-reference/scrapers/synchronous-requests),
+20 URLs and a one-minute limit, is raw HTTP only.
 
 Error rows, like the empty-window one above, appear because the SDK asks for
 them with `include_errors=true`. The API default is off.
@@ -290,6 +290,8 @@ url  date_posted  description  hashtags  likes  num_comments  user_posted
 ```
 
 The code hardcodes no field list. Whatever the API returns lands in the file.
+A collaborative post carries the co-author's handle in `user_posted`, so a post
+fetched from nasa can say `nasajohnson`; `coauthor_producers` lists everyone.
 
 <!-- fields:start -->
 <details>

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import inspect
 import json
+import os
+import subprocess
 import sys
 import typing
 from contextlib import nullcontext
@@ -174,7 +176,26 @@ def test_a_missing_token_is_a_message_not_a_traceback(monkeypatch, capsys):
 
     monkeypatch.setattr(cli, "client_context", no_token)
     assert cli.main(["nasa"]) == 2
-    assert "token" in capsys.readouterr().err
+    err = capsys.readouterr().err
+    assert "export BRIGHTDATA_API_TOKEN" in err and "bdata login" in err
+    assert "Pass as parameter" not in err, "the SDK's Python-only advice leaked into the CLI"
+
+
+def test_piped_output_keeps_the_header_before_the_error(tmp_path):
+    """A log or an agent reads a pipe. The header must not land after the error."""
+    env = {k: v for k, v in os.environ.items() if k != "BRIGHTDATA_API_TOKEN"}
+    env["HOME"] = str(tmp_path)  # no CLI login, no .env: the stranger's machine
+    run = subprocess.run(
+        [sys.executable, "-m", "ig_scraper", "nasa"],
+        cwd=tmp_path,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        timeout=60,
+    )
+    assert run.returncode == 2, run.stdout
+    assert run.stdout.index("Fetching up to") < run.stdout.index("API token required")
 
 
 def test_the_sdk_contract_the_readme_relies_on():
