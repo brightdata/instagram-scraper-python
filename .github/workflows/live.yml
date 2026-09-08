@@ -1,20 +1,25 @@
 # The only workflow that calls the real API. Needs the BRIGHTDATA_API_TOKEN
 # secret and spends about one credit per post.
 #
-# Three ways it runs:
+# Four ways it runs:
+#   on every push to main: one post from nasa and the README's links, one
+#     credit and about three minutes, so a broken commit shows up at once.
+#     A newer push cancels a run still going for an older commit.
 #   by hand, from the Actions tab, to scrape whatever accounts you choose
 #   every day at 06:00 UTC except Monday: one post from nasa, the async
 #     path, and the field table, about two credits
 #   every Monday at 06:00 UTC: the same, plus every code block in the README,
-#     about 37 credits and 30 minutes
+#     about 35 credits and 30 minutes
 #
-# Not on push: that would spend money per commit, and a slow day at the API
-# would show up as a failed build on your repository.
+# A slow day at the API shows up as a red run. Rerun it before reading more
+# into it.
 name: Live check
 
-run-name: "${{ github.event.schedule == '0 6 * * 1' && 'Weekly check: does every README block still work?' || github.event_name == 'schedule' && 'Daily check: is anything broken?' || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
+run-name: "${{ github.event.schedule == '0 6 * * 1' && 'Weekly check: does every README block still work?' || github.event_name == 'schedule' && 'Daily check: is anything broken?' || github.event_name == 'push' && format('Push check: {0}', github.event.head_commit.message) || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
 
 on:
+  push:
+    branches: [main]
   schedule:
     - cron: "0 6 * * 0,2-6"  # daily smoke, every day except Monday
     - cron: "0 6 * * 1"    # Monday: the whole README
@@ -36,6 +41,10 @@ on:
 
 permissions:
   contents: write  # the daily check commits the regenerated field table
+
+concurrency:
+  group: live-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'push' }}  # only the newest commit matters
 
 jobs:
   scrape:
