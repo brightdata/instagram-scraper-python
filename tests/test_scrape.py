@@ -238,7 +238,7 @@ def test_the_readme_excerpt_is_the_start_of_the_example_file():
 
 
 def test_every_in_page_link_has_its_heading():
-    """A renamed heading would break the header row silently; the daily link check only sees URLs."""
+    """A renamed heading would break the header row silently; the link check sees only URLs."""
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
     headings = re.findall(r"^#{1,6} (.+)$", readme, re.M)
     anchors = {re.sub(r"[^a-z0-9 -]", "", h.lower()).replace(" ", "-") for h in headings}
