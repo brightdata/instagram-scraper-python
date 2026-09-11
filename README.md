@@ -1,3 +1,5 @@
+[![Scrape Instagram data with the Instagram Scraper API. Start free.](.github/banner.png)](https://brightdata.com/products/web-scraper/instagram)
+
 # instagram-scraper-python
 
 [![Live check](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml/badge.svg)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml)
@@ -474,8 +476,6 @@ Bugs in this repo:
 [open an issue](https://github.com/brightdata/instagram-scraper-python/issues).
 Anything about the API, your account or your credits:
 [Bright Data support](https://brightdata.zendesk.com/hc/en-us/requests/new).
-
-[![Scrape Instagram data with the Instagram Scraper API. Start free.](.github/banner.jpg)](https://brightdata.com/products/web-scraper/instagram)
 
 ## License
 
