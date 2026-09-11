@@ -71,7 +71,7 @@ JSON file.
 
 ```bash
 pip install git+https://github.com/brightdata/instagram-scraper-python
-ig-scraper nasa natgeo
+instagram-scraper nasa natgeo
 ```
 
 ```
@@ -97,14 +97,14 @@ you can see it is working and how long it has been going:
 --out PATH   output file, default instagram.json
 ```
 
-`python -m ig_scraper` works too.
+`python -m instagram_scraper` works too.
 
 Import it instead of running it, for `ok`, `note` and `error` per account
 instead of raw rows. `scrape` never raises for one bad account; check `ok`
 before reading `posts`:
 
 ```python
-from ig_scraper import scrape
+from instagram_scraper import scrape
 
 for outcome in scrape(["nasa", "zz_not_a_real_account_zz"], limit=1):
     if outcome.ok:
@@ -347,7 +347,7 @@ of these 44.
 <!-- fields:end -->
 
 <details>
-<summary>The start of a real output file, from <code>ig-scraper nasa --limit 1</code></summary>
+<summary>The start of a real output file, from <code>instagram-scraper nasa --limit 1</code></summary>
 
 ```json
 {

@@ -97,12 +97,12 @@ jobs:
           }
           # One retry, only on an API timeout. A slow day is not a broken build.
           set +e
-          python -m ig_scraper $HANDLES --limit "$LIMIT" 2>&1 | tee run.log
+          python -m instagram_scraper $HANDLES --limit "$LIMIT" 2>&1 | tee run.log
           code=${PIPESTATUS[0]}
           if [ "$code" != "0" ] && grep -q "timeout" run.log; then
             echo "::warning::The API timed out. Waiting 30s and trying once more."
             sleep 30
-            python -m ig_scraper $HANDLES --limit "$LIMIT" 2>&1 | tee run.log
+            python -m instagram_scraper $HANDLES --limit "$LIMIT" 2>&1 | tee run.log
             code=${PIPESTATUS[0]}
           fi
           exit "$code"

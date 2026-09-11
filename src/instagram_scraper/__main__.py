@@ -1,4 +1,4 @@
-"""ig-scraper nasa natgeo, or python -m ig_scraper nasa natgeo"""
+"""instagram-scraper nasa natgeo, or python -m instagram_scraper nasa natgeo"""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def positive(value: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="ig-scraper",
+        prog="instagram-scraper",
         description="Scrape recent Instagram posts for one or more handles.",
     )
     parser.add_argument("handles", nargs="+", help="handles, with or without the @")

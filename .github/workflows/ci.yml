@@ -67,7 +67,7 @@ jobs:
           command = block(section("Or run it as a command"), "bash")
           for required, where in (("pip install brightdata-sdk", install),
                                   ("SyncBrightDataClient", snippet),
-                                  ("ig-scraper", command)):
+                                  ("instagram-scraper", command)):
               if required not in where:
                   sys.exit(f"the README no longer contains {required!r} where the cold start expects it")
 
@@ -85,7 +85,7 @@ jobs:
               "# --- Or run it as a command: the CLI path ---",
           ]
           for line in command.splitlines():
-              if line.startswith("ig-scraper"):
+              if line.startswith("instagram-scraper"):
                   continue  # run below, so the exit code can be checked
               if line.startswith("pip install"):
                   # While the repository is private nobody, including this
@@ -108,7 +108,7 @@ jobs:
               steps.append(line)
           steps += [
               "set +e",
-              "ig-scraper nasa --limit 1 > out.txt 2> err.txt",
+              "instagram-scraper nasa --limit 1 > out.txt 2> err.txt",
               "code=$?",
               "set -e",
               'test "$code" = "2" || { echo "expected exit 2, got $code"; cat err.txt; exit 1; }',

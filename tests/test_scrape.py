@@ -15,8 +15,8 @@ from types import SimpleNamespace
 import pytest
 from brightdata import BrightDataError
 
-import ig_scraper.__main__  # noqa: F401  (registers the module for monkeypatching)
-from ig_scraper.scrape import EMPTY_WINDOW, Outcome, clean_handle, scrape, write
+import instagram_scraper.__main__  # noqa: F401  (registers the module for monkeypatching)
+from instagram_scraper.scrape import EMPTY_WINDOW, Outcome, clean_handle, scrape, write
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -105,7 +105,7 @@ def test_a_client_we_own_gets_entered(monkeypatch):
             entered.append(False)
             return False
 
-    monkeypatch.setattr(sys.modules["ig_scraper.scrape"], "SyncBrightDataClient", Fake)
+    monkeypatch.setattr(sys.modules["instagram_scraper.scrape"], "SyncBrightDataClient", Fake)
     assert scrape(["nasa"])[0].ok
     assert entered == [True, False]
 
@@ -124,14 +124,14 @@ def test_we_do_not_ask_the_sdk_to_create_zones(monkeypatch):
         def __exit__(self, *exc):
             return False
 
-    monkeypatch.setattr(sys.modules["ig_scraper.scrape"], "SyncBrightDataClient", Fake)
+    monkeypatch.setattr(sys.modules["instagram_scraper.scrape"], "SyncBrightDataClient", Fake)
     scrape(["nasa"])
     assert seen.get("auto_create_zones") is False
 
 
 def fake_cli(monkeypatch, outcome_for):
     """Point the CLI at a client that never exists and a handler we control."""
-    cli = sys.modules["ig_scraper.__main__"]
+    cli = sys.modules["instagram_scraper.__main__"]
     monkeypatch.setattr(cli, "client_context", lambda: nullcontext(object()))
     monkeypatch.setattr(cli, "scrape_handle", lambda client, handle, limit: outcome_for(handle))
     return cli
@@ -161,7 +161,7 @@ def test_each_result_prints_before_the_next_handle_starts(monkeypatch, tmp_path,
 
 def test_a_limit_below_one_is_refused_before_any_request(capsys):
     """num_of_posts=0 is money spent on a request nobody meant to make."""
-    cli = sys.modules["ig_scraper.__main__"]
+    cli = sys.modules["instagram_scraper.__main__"]
     for bad in ("0", "-3"):
         with pytest.raises(SystemExit):
             cli.main(["nasa", "--limit", bad])
@@ -169,7 +169,7 @@ def test_a_limit_below_one_is_refused_before_any_request(capsys):
 
 
 def test_a_missing_token_is_a_message_not_a_traceback(monkeypatch, capsys):
-    cli = sys.modules["ig_scraper.__main__"]
+    cli = sys.modules["instagram_scraper.__main__"]
 
     def no_token():
         raise BrightDataError("API token required but not found.")
@@ -186,7 +186,7 @@ def test_piped_output_keeps_the_header_before_the_error(tmp_path):
     env = {k: v for k, v in os.environ.items() if k != "BRIGHTDATA_API_TOKEN"}
     env["HOME"] = str(tmp_path)  # no CLI login, no .env: the stranger's machine
     run = subprocess.run(
-        [sys.executable, "-m", "ig_scraper", "nasa"],
+        [sys.executable, "-m", "instagram_scraper", "nasa"],
         cwd=tmp_path,
         env=env,
         stdout=subprocess.PIPE,
