@@ -43,7 +43,7 @@ SDK's own docstrings.
   must be real.
 - The field table in the README sits between `<!-- fields:start -->` and
   `<!-- fields:end -->` and is regenerated daily. Do not edit it by hand.
-- The `status` branch holds one bot-written file for the "last verified" badge.
-  Never edit it, merge it, or base work on it.
+- The "last verified" badge line at the top of the README is rewritten by the
+  daily run. Do not edit it by hand.
 - Keep it small: about 13 files and 450 lines of Python. Do not add retries,
   deduplication, scheduling, databases, async examples or concurrency.

@@ -14,12 +14,10 @@
 # A slow day at the API shows up as a red run. Rerun it before reading more
 # into it.
 #
-# Every run ends by writing one file, verified.json, to the `status` branch,
-# overwritten each time, so the branch never grows. A hosted badge renders it
-# as "last verified | 11 Sep 2026", red with the date when a run failed. The
-# badge works once the repository is public; add this line under the Live
-# check badge in README.md that day:
-#   [![last verified](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbrightdata%2Finstagram-scraper-python%2Fstatus%2Fverified.json)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml)
+# The daily and Monday runs end by rewriting the "last verified" badge line at
+# the top of README.md with today's date, and committing it if it changed. Push
+# runs never do this, so your own push is never followed by a bot commit. Only
+# the main repository commits; a copy of the repository just runs the checks.
 name: Live check
 
 run-name: "${{ github.event.schedule == '0 6 * * 1' && 'Weekly check: does every README block still work?' || github.event_name == 'schedule' && 'Daily check: is anything broken?' || github.event_name == 'push' && format('Push check: {0}', github.event.head_commit.message) || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
@@ -173,7 +171,7 @@ jobs:
           PY
 
       - name: Regenerate the README field table from the live schema
-        if: always() && env.CHECK == 'true'
+        if: always() && env.CHECK == 'true' && github.repository == 'brightdata/instagram-scraper-python'
         run: |
           python - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
           import json
@@ -366,30 +364,40 @@ jobs:
           sys.exit(0 if ok else 1)
           PY
 
-  status:
-    name: Write the date for the "last verified" badge
+  badge:
+    name: Put today's date on the README's "last verified" badge
     needs: [scrape, plan, block]
-    if: always() && !cancelled()
+    # scheduled and manual runs only, and only in the main repository: a push is
+    # never followed by a bot commit, and a copy never diverges from the original
+    if: always() && !cancelled() && github.event_name != 'push' && github.repository == 'brightdata/instagram-scraper-python'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Put one file on the status branch, overwritten every run
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7
+      - name: Rewrite one badge line, commit only if it changed
         env:
           SCRAPE: ${{ needs.scrape.result }}
-          BLOCKS: ${{ needs.block.result }}  # skipped on smoke runs, and that is fine
-          TOKEN: ${{ github.token }}
+          BLOCKS: ${{ needs.block.result }}  # skipped on the daily run, and that is fine
         run: |
           if [ "$SCRAPE" = "success" ] && { [ "$BLOCKS" = "success" ] || [ "$BLOCKS" = "skipped" ]; }; then
             label="last verified"; color="brightgreen"
           else
-            label="failed"; color="red"
+            label="last check failed"; color="red"
           fi
           today=$(date -u +'%-d %b %Y')
-          mkdir status && cd status && git init -q -b status
+          line="[![${label}](https://img.shields.io/badge/${label// /%20}-${today// /%20}-${color})](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml) <!-- verified: rewritten by the daily run -->"
+          python3 - "$line" <<'PY'
+          import pathlib, re, sys
+          p = pathlib.Path("README.md"); t = p.read_text(encoding="utf-8")
+          new, n = re.subn(r"^\[!\[last [^\]]*\]\(https://img\.shields\.io/badge/[^)]*\)\]\([^)]*\) <!-- verified:[^\n]*$", sys.argv[1], t, count=1, flags=re.M)
+          if n != 1:
+              sys.exit("the badge line is missing from README.md")
+          p.write_text(new, encoding="utf-8")
+          PY
+          if git diff --quiet; then echo "badge already shows $today"; exit 0; fi
           git config user.name "anil-bd"
           git config user.email "210667061+anil-bd@users.noreply.github.com"
-          printf '{"schemaVersion": 1, "label": "%s", "message": "%s", "color": "%s", "cacheSeconds": 300}\n' "$label" "$today" "$color" > verified.json
-          cat verified.json
-          git add verified.json
-          git commit -q -m "Live check on $today: $label"
-          git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" status
+          git commit -qam "Last verified $today (automated daily check)"
+          git pull -q --rebase origin main
+          git push -q origin main
+          echo "badge now shows: $label, $today"
