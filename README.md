@@ -1,4 +1,4 @@
-[![Instagram Scraper API: profiles, posts, reels, comments. Collect or discover by URL and username. Start free.](.github/banner.png)](https://brightdata.com/products/web-scraper/instagram)
+[![Instagram Scraper API: profiles, posts, reels, comments. Collect or discover by URL and username. Start free.](.github/banner.png)](https://brightdata.com/products/web-scraper/instagram?utm_source=github)
 
 # instagram-scraper-python
 
@@ -9,7 +9,7 @@
 
 Instagram profiles, posts, reels and comments as JSON, in Python. No Instagram
 login, no browser. Built on the
-[Bright Data Instagram Scraper API](https://brightdata.com/products/web-scraper/instagram).
+[Bright Data Instagram Scraper API](https://brightdata.com/products/web-scraper/instagram?utm_source=github).
 
 Uses the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
 Full API docs:
