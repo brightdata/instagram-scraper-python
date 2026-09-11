@@ -5,7 +5,7 @@
 
 Instagram profiles, posts, reels and comments as JSON, in Python. No Instagram
 login, no browser. Built on the
-[Bright Data Scraper API](https://brightdata.com/products/web-scraper).
+[Bright Data Instagram Scraper API](https://brightdata.com/products/web-scraper/instagram).
 
 Uses the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
 Full API docs:
@@ -55,7 +55,7 @@ with SyncBrightDataClient(auto_create_zones=False) as client:
 ```
 
 Expect one to three minutes: the API runs a job and the SDK waits for it. One
-credit per post.
+[credit](https://brightdata.com/pricing/web-scraper) per post.
 
 Pass `auto_create_zones=False` every time. Left on, the SDK creates zones on
 startup for Web Unlocker and SERP, two other Bright Data products this scraper
@@ -121,7 +121,9 @@ An account with nothing recent is a success with no posts. The reason lands in
 
 ## The rest of the API
 
-The command covers one endpoint. The SDK has eight. Every snippet below is complete
+The command covers one endpoint. The SDK has eight, documented in the
+[Instagram Scraper API docs](https://docs.brightdata.com/products/scrapers/instagram/introduction).
+Every snippet below is complete
 and needs only `brightdata-sdk`: paste it as is. Every one of them runs in Actions each Monday, a smaller check
 runs every other day, and the badge at the top is the latest result.
 

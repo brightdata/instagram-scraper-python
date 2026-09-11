@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "instagram-scraper-python"
 version = "0.1.0"
-description = "Instagram profiles, posts, reels and comments as JSON, in Python. No Instagram login, no browser. Bright Data Scraper API."
+description = "Instagram scraper in Python: profiles, posts, reels and comments as JSON, on the Bright Data Instagram Scraper API (Web Scraper API). No Instagram login, no browser. 5,000 free credits a month."
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.10"
