@@ -13,6 +13,13 @@
 #
 # A slow day at the API shows up as a red run. Rerun it before reading more
 # into it.
+#
+# Every run ends by writing one file, verified.json, to the `status` branch,
+# overwritten each time, so the branch never grows. A hosted badge renders it
+# as "last verified | 11 Sep 2026", red with the date when a run failed. The
+# badge works once the repository is public; add this line under the Live
+# check badge in README.md that day:
+#   [![last verified](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fbrightdata%2Finstagram-scraper-python%2Fstatus%2Fverified.json)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml)
 name: Live check
 
 run-name: "${{ github.event.schedule == '0 6 * * 1' && 'Weekly check: does every README block still work?' || github.event_name == 'schedule' && 'Daily check: is anything broken?' || github.event_name == 'push' && format('Push check: {0}', github.event.head_commit.message) || format('Scrape {0}, {1} posts each', inputs.handles, inputs.limit) }}"
@@ -358,3 +365,31 @@ jobs:
           print(f"\n`{b['title']}`: {'ok' if ok else 'FAILED'} in {secs}s\n\n    {shown[:120]}")
           sys.exit(0 if ok else 1)
           PY
+
+  status:
+    name: Write the date for the "last verified" badge
+    needs: [scrape, plan, block]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Put one file on the status branch, overwritten every run
+        env:
+          SCRAPE: ${{ needs.scrape.result }}
+          BLOCKS: ${{ needs.block.result }}  # skipped on smoke runs, and that is fine
+          TOKEN: ${{ github.token }}
+        run: |
+          if [ "$SCRAPE" = "success" ] && { [ "$BLOCKS" = "success" ] || [ "$BLOCKS" = "skipped" ]; }; then
+            label="last verified"; color="brightgreen"
+          else
+            label="failed"; color="red"
+          fi
+          today=$(date -u +'%-d %b %Y')
+          mkdir status && cd status && git init -q -b status
+          git config user.name "anil-bd"
+          git config user.email "210667061+anil-bd@users.noreply.github.com"
+          printf '{"schemaVersion": 1, "label": "%s", "message": "%s", "color": "%s", "cacheSeconds": 300}\n' "$label" "$today" "$color" > verified.json
+          cat verified.json
+          git add verified.json
+          git commit -q -m "Live check on $today: $label"
+          git push -q --force "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" status
