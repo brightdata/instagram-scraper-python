@@ -11,7 +11,7 @@ login, no browser. Built on the
 
 Uses the [Bright Data Python SDK](https://github.com/brightdata/sdk-python).
 Full API docs:
-[Web Scraper API](https://docs.brightdata.com/scraping-automation/web-data-apis/web-scraper-api/overview).
+[Instagram Scraper API](https://docs.brightdata.com/products/scrapers/instagram/introduction).
 
 Also here: a one-command CLI for posts, and the
 [Bright Data CLI](#coding-agents), which needs no Python at all.
