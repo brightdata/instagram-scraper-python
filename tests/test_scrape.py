@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 import json
 import os
+import re
 import subprocess
 import sys
 import typing
@@ -234,3 +235,12 @@ def test_the_readme_excerpt_is_the_start_of_the_example_file():
 
     assert "\n".join(sample.splitlines()[:20]) in readme, "README excerpt drifted from the file"
     assert "](examples/sample_output.json)" in readme
+
+
+def test_every_in_page_link_has_its_heading():
+    """A renamed heading would break the header row silently; the daily link check only sees URLs."""
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    headings = re.findall(r"^#{1,6} (.+)$", readme, re.M)
+    anchors = {re.sub(r"[^a-z0-9 -]", "", h.lower()).replace(" ", "-") for h in headings}
+    for anchor in re.findall(r"\]\(#([^)]+)\)", readme):
+        assert anchor in anchors, f"#{anchor} points at no heading"

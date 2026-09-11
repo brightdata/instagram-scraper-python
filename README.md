@@ -5,6 +5,8 @@
 [![Live check](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml/badge.svg)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml)
 [![last verified](https://img.shields.io/badge/last%20verified-11%20Sep%202026-brightgreen)](https://github.com/brightdata/instagram-scraper-python/actions/workflows/live.yml) <!-- verified: rewritten by the daily run -->
 
+[Quickstart](#quickstart) · [Command](#or-run-it-as-a-command) · [Endpoints](#the-rest-of-the-api) · [Data](#the-data) · [Errors](#when-it-fails) · [Coding agents](#coding-agents) · [Docs](https://docs.brightdata.com/products/scrapers/instagram/introduction) · [Support](#support)
+
 Instagram profiles, posts, reels and comments as JSON, in Python. No Instagram
 login, no browser. Built on the
 [Bright Data Instagram Scraper API](https://brightdata.com/products/web-scraper/instagram).
