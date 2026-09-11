@@ -32,6 +32,8 @@ SDK's own docstrings.
   a success with zero records. Match the message, not `error_code`; a dead
   account uses the same code.
 - The schema changes without notice. Never hardcode a field list.
+- The full documentation index, one `.md` page per entry:
+  https://docs.brightdata.com/llms.txt
 
 ## Working here
 

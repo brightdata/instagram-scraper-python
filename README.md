@@ -397,15 +397,33 @@ From the SDK, the same conditions look like this:
 
 ## Coding agents
 
-No Python, nothing installed. Paste both lines; the first opens a browser once:
+No Python, nothing installed. Paste both lines; the first opens a browser
+once, or use `bdata login --device` over SSH and in CI:
 
 ```bash
 npx -p @brightdata/cli bdata login
 npx -p @brightdata/cli bdata pipelines instagram_posts "https://www.instagram.com/p/Db_SePSltfz/"
 ```
 
-Agent skills for Claude Code, Codex and Cursor:
-[brightdata/skills](https://github.com/brightdata/skills).
+The CLI's four Instagram pipelines each take a post, reel or profile URL and
+return that one record. Recent posts from a profile is the SDK call in the
+Quickstart; the CLI has no route for it.
+
+`npx skills add brightdata/skills` teaches Claude Code, Cursor and Codex these
+commands and the docs, so plain language works afterwards. Full guide:
+[Bright Data for your coding agent](https://docs.brightdata.com/quickstart-coding-agent).
+
+No terminal, for a hosted assistant? The
+[Bright Data MCP server](https://github.com/brightdata/brightdata-mcp#which-tool-to-use)
+has the same four Instagram tools, one URL each, in its `social` group, which
+is off unless you ask for it:
+
+    https://mcp.brightdata.com/mcp?token=YOUR_API_TOKEN&groups=social
+
+An agent can also open the account itself, no signup form:
+[agent registration](https://brightdata.com/auth.md). Everything else Bright
+Data connects to, from LangChain to Zapier and n8n:
+[integrations](https://docs.brightdata.com/integrations/introduction).
 
 <details>
 <summary>Every Instagram command the CLI has, each run today</summary>
