@@ -1,4 +1,4 @@
-[![Scrape Instagram data with the Instagram Scraper API: profiles, posts, reels, comments. Collect or discover by URL and username. Start free.](.github/banner.png)](https://brightdata.com/products/web-scraper/instagram?utm_source=github)
+[![Scrape Instagram data with the Instagram Scraper API: profiles, posts, reels, search. Collect or discover by URL and username. Start free.](.github/banner.png)](https://brightdata.com/products/web-scraper/instagram?utm_source=github)
 
 # instagram-scraper-python
 
