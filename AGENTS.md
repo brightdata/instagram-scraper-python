@@ -47,5 +47,5 @@ SDK's own docstrings.
   `<!-- fields:end -->` and is regenerated daily. Do not edit it by hand.
 - The "last verified" badge line at the top of the README is rewritten by the
   daily run. Do not edit it by hand.
-- Keep it small: about 13 files and 450 lines of Python. Do not add retries,
+- Keep it small: 15 files and 450 lines of Python. Do not add retries,
   deduplication, scheduling, databases, async examples or concurrency.
